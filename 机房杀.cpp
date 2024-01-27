@@ -3,6 +3,7 @@
 #include<vector>
 #include<random>
 #include<conio.h>
+#include<windows.h>
 using namespace std;
 namespace Random{
 	default_random_engine e(time(0));
@@ -38,7 +39,8 @@ struct player{
 	bool involution=false;//是否内卷
 	int noend=0;//（仅AJ有效）不死之身次数
 	bool canplay[10];//能否使用此卡牌
-	player(const string &_name=""):name(_name){
+	bool isAI=false;//是否是AI代管
+	player(const string &_name="",bool _ai=false):name(_name),isAI(_ai){
 		if(name=="lyr"){
 			spriteid=1;
 		} else if(name=="xza"){
@@ -93,6 +95,7 @@ const string skill_names[7][3]={//主动技能
 constexpr int skills[7]={0,2,0,1,1,1,0};//主动技能数
 const vector<double> cardprop={0,1,1,1,1,1,1,1,1,1};//卡牌概率权重
 const vector<int> carddropid={0,1,2,3,4,5,6,7,8,9};
+constexpr int AI_THINK_MS=500;//AI思考毫秒数
 int nowalive(){
 	int ans=0;
 	for(int i=1;i<=playersum;i++){
@@ -106,7 +109,8 @@ void help(){
 	//游戏信息
 	cout<<"更新日志：" << endl;
 	cout<<"2024.1.22 创建游戏"<<endl;
-	cout << "2024.1.23 最开始设计的游戏功能都实现了，测试完毕" << endl;
+	cout<<"2024.1.23 最开始设计的游戏功能都实现了，测试完毕" << endl;
+	cout<<"2024.1.27 可以增加AI了，但是这个AI就是从所有可选项中随机选一个，不知道有什么用。" << endl;
 	cout<<"开发：lyr、xza、cyq"<<endl;
 	cout<<"规则："<<endl;
 	cout<<"  1.每回合结束时，将手中的牌弃到6张。"<<endl;
@@ -159,8 +163,14 @@ int choooseplayer(int playerid){
 		++j;
 	}
 	cout << '\n';
-	op=toupper(getch());
-	while(!(op>='A' && op<=j-1))	op=toupper(getch());
+	if(players[playerid].isAI){
+		Sleep(AI_THINK_MS);
+		op=randint('A',j-1);
+	} else{
+		op=toupper(getch());
+		while(!(op>='A' && op<=j-1))	op=toupper(getch());
+	}
+	
 	return chartoid[op];
 }
 void player::add_lf(int delta){
@@ -170,8 +180,14 @@ void player::add_lf(int delta){
 		--noend;
 		cout << "AJ发动了触发技能[不死之身]！请选择：\n";
 		cout << "[1]生命+2\t[2]死去，但是选择A，他/她生命-5，成绩归0。\n";
-		int op=getch();
-		while(!(op=='1' || op=='2'))	op=getch();
+		int op;
+		if(isAI){
+			Sleep(AI_THINK_MS);
+			op=randint('1','2');
+		} else{
+			op=getch();
+			while(!(op=='1' || op=='2'))	op=getch();
+		}
 		if(op=='1'){
 			add_lf(2);
 		} else{
@@ -390,7 +406,11 @@ void usecard(int cardid,int playerid){
 		}
 		break;
 	}
-	getch();
+	if(players[playerid].isAI){
+		Sleep(AI_THINK_MS);
+	} else{
+		getch();
+	}
 }
 void printinfo(int i){
 	system("cls");
@@ -398,7 +418,11 @@ void printinfo(int i){
 		if(players[i].isdead)	continue;
 		cout << players[i].name << "[" << sprite_names[players[i].spriteid] << "]\t生命 " << players[i].life << "/20\t成绩 " << players[i].score << "/400\t知识点 " << players[i].knowledge << "/40\n";
 	}
-	cout << "玩家：" << players[i].name << "的回合\n";
+	cout << "玩家：" << players[i].name << "的回合";
+	if(players[i].isAI){
+		cout << "[AI代管]";
+	}
+	cout << "\n";
 }
 int gamemain(){
 	//返回值为获胜玩家id，为-1表示没有人获胜
@@ -412,12 +436,12 @@ int gamemain(){
 			}
 		}
 		for(int i=1;i<=playersum;i++){
+			printinfo(i);
 			if(players[i].isdead){
 				cout << players[i].name << "死了。\n";
 				getch();
 				continue;
 			}
-			printinfo(i);
 			//出牌
 			int op;
 			if(nowalive()>1){
@@ -433,16 +457,24 @@ int gamemain(){
 						cout << j+1 << ' ' << card_names[card] << '\t';
 					}
 					cout << '\n';
-					op=getch();
-					while(!(op>='0' && op<=int(players[i].cards.size()+'0')))	op=getch();
-					
+					if(players[i].isAI==true){
+						Sleep(AI_THINK_MS);
+						op=randint('0',int(players[i].cards.size()+'0'));
+					} else{
+						op=getch();
+						while(!(op>='0' && op<=int(players[i].cards.size()+'0')))	op=getch();	
+					}
 					if(op=='0'){
 						break;
 					} else{
 						op=op-'0'-1;
 						if(players[i].canplay[players[i].cards[op]]==false){
 							cout << "此卡牌无法使用！\n";
-							system("pause");
+							if(players[i].isAI){
+								Sleep(AI_THINK_MS);
+							} else{
+								getch();	
+							}
 							goto get;
 						}
 						usecard(op,i);
@@ -455,8 +487,13 @@ int gamemain(){
 					cout << j+1 << ' ' << skill_names[players[i].spriteid][j] << '\t';
 				}
 				cout << '\n';
-				op=getch();
-				while(!(op>='0' && op<=skill_cnt+'0'))	op=getch();
+				if(players[i].isAI){
+					Sleep(AI_THINK_MS);
+					op=randint('0',skill_cnt+'0');
+				} else{
+					op=getch();
+					while(!(op>='0' && op<=skill_cnt+'0'))	op=getch();
+				}
 				if(op!='0'){
 					op=op-'0'-1;
 					cout << players[i].name << "发动了[主动技]" << skill_names[players[i].spriteid][op] << "。\n";
@@ -532,7 +569,12 @@ int gamemain(){
 						}
 						break;
 					}
-					getch();
+					if(players[i].isAI){
+						Sleep(AI_THINK_MS);
+					} else{
+						getch();	
+					}
+					
 				}
 				
 				while(players[i].cards.size()>6){
@@ -543,8 +585,13 @@ int gamemain(){
 						cout << j+1 << ' ' << card_names[card] << '\t';
 					}
 					cout << '\n';
-					op=getch();
-					while(!(op>='1' && op<=int(players[i].cards.size()+'0')))	op=getch();
+					if(players[i].isAI){
+						Sleep(AI_THINK_MS);
+						op=randint('1',int(players[i].cards.size()+'0'));
+					} else{
+						op=getch();
+						while(!(op>='1' && op<=int(players[i].cards.size()+'0')))	op=getch();
+					}
 					players[i].used(op-'1');
 				}
 			}
@@ -560,10 +607,11 @@ int gamemain(){
 	return ans;
 }
 int main(){
+	system("title 机房杀");
 	start:
 	system("cls");
 	cout<<"欢迎来到机房杀！\n";
-	cout<<"1-游戏说明 2-开始游戏\n";
+	cout<<"[1]游戏说明\t[2]开始游戏\n";
 	int x;
 	string s;
 	x=getch()-'0';
@@ -579,7 +627,12 @@ int main(){
 		for(int i=1;i<=playersum;i++){
 			cout<<"玩家"<<i<<"名字:";
 			cin>>s;
-			players[i]=player(s);
+			char op;
+			cout << "玩家是否为AI？(Y/N)\n";
+			do{
+				op=toupper(getch());
+			} while(!(op=='Y' || op=='N'));
+			players[i]=player(s,op=='Y'?true:false);
 		}
 		int winnerid=gamemain();
 		system("cls");
