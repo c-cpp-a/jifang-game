@@ -4,6 +4,8 @@
 #include<random>
 #include<conio.h>
 #include<windows.h>
+#include<ctime> 
+#include<map> 
 using namespace std;
 namespace Random{
 	default_random_engine e(time(0));
@@ -33,7 +35,7 @@ struct player{
 	int life=20;//生命
 	int score=100;//成绩
 	int knowledge=0;//知识点
-	vector<int> cards;//手中卡牌
+	vector<pair<int,int>> cards;//手中卡牌 first=卡牌id second=稀有度 
 	bool isdead=false;//是否死亡
 	bool corruption=false;//是否腐败
 	bool involution=false;//是否内卷
@@ -92,10 +94,21 @@ const string skill_names[7][3]={//主动技能
 	{"你是个废物！"},
 	{}
 };
+const string raritynames[5]={
+	"",
+	"罕见",
+	"稀有",
+	"传奇",
+	"神话"
+};
 constexpr int skills[7]={0,2,0,1,1,1,0};//主动技能数
-const vector<double> cardprop={0,1,1,1,1,1,1,1,1,1};//卡牌概率权重
+const vector<double> cardprop={0,1.7,1,0.9,1,0.8,1.1,1.3,1,1};//卡牌概率权重
 const vector<int> carddropid={0,1,2,3,4,5,6,7,8,9};
-constexpr int AI_THINK_MS=500;//AI思考毫秒数
+const vector<double> rarityprop={90,30,10,3,2};//稀有度概率权重（2/3:2/9:2/27:1/45:2/135） 
+const vector<int> rarityid={0,1,2,3,4};
+constexpr double rarity_times[5]={1,1.66,2.7889,4.657463,7.77796321};//稀有度对有益效果的加成 
+constexpr int AI_THINK_MS=200;//AI思考毫秒数
+map<string,pair<int,int>> players_calc;//统计玩家的 key=名字 first=赢得局数 second=总局数 
 int nowalive(){
 	int ans=0;
 	for(int i=1;i<=playersum;i++){
@@ -111,6 +124,9 @@ void help(){
 	cout<<"2024.1.22 创建游戏"<<endl;
 	cout<<"2024.1.23 最开始设计的游戏功能都实现了，测试完毕" << endl;
 	cout<<"2024.1.27 可以增加AI了，但是这个AI就是从所有可选项中随机选一个，不知道有什么用。" << endl;
+	cout<<"2024.1.29 游戏细节优化，修复bug" << endl;
+	cout<<"2024.1.30 增加统计信息显示" << endl;
+	cout<<"2024.1.31 增加功能：卡牌稀有度" << endl;
 	cout<<"开发：lyr、xza、cyq"<<endl;
 	cout<<"规则："<<endl;
 	cout<<"  1.每回合结束时，将手中的牌弃到6张。"<<endl;
@@ -118,7 +134,7 @@ void help(){
 	cout<<"  3.成绩<0时让成绩=0，然后生命-2，生命=0时如果没有特殊技能，角色死亡。"<<endl;
 	cout<<"  4.每回合开始时，摸2张牌。"<<endl;
 	cout<<"  5.游戏开始时，角色的生命为20，成绩为100，知识点为0。"<<endl;
-	cout<<"卡牌："<<endl;
+	cout<<"卡牌（普通卡牌）："<<endl;
 	cout<<"  1.学新知识点：成绩+10，知识点+1"<<endl;
 	cout<<"  2.做题：成绩加上知识点数量*0.5（向上取整）"<<endl;
 	cout<<"  3.狂人卷题：生命-1，成绩+知识点数量*1"<<endl;
@@ -128,6 +144,7 @@ void help(){
 	cout<<"  7.向AJ举报：你选择一名其他角色，其生命-1，如果其本轮成为过卡牌5、6的目标，改为生命-2。"<<endl;
 	cout<<"  8.急眼：你选择一名其他角色，其生命-2，你成绩-5，然后如果其本轮成为过卡牌5、6的目标，其成绩-5。"<<endl;
 	cout<<"  9.翻墙：除了本回合成为卡牌1、2、3的目标的人外，其他所有角色成绩-7，生命-1，然后你有50%概率成绩-3，生命-1。"<<endl;
+	cout<<"有概率摸到更高稀有度，每一级有益效果*1.67（对最终结果向上取整），优先于被动技能。"<<endl;
 	cout<<"角色："<<endl;
 	cout<<"  1.lyr：使用卡牌5时生命+1，成绩-2。"<<endl;
 	cout<<"		（1）腐败王：你可以视为使用了一张卡牌5，本轮其他所有角色无法使用卡牌1。"<<endl;
@@ -149,8 +166,8 @@ void help(){
 	cout<<"		（2）不死之身：每局限两次，若你的生命<=2且不为0，你选择一项：1.生命+2；2.你选择一名其它角色，令其生命-5，成绩=0，然后你死亡。"<<endl;
 	system("pause");
 }
-int randcardid(){
-	return randchoose(make_pair(cardprop,carddropid));
+pair<int,int> randcardid(){
+	return make_pair(randchoose(make_pair(cardprop,carddropid)),randchoose(make_pair(rarityprop,rarityid)));
 }
 int chartoid[128];
 int choooseplayer(int playerid){
@@ -204,7 +221,7 @@ void player::add_lf(int delta){
 	}
 }
 void usecard(int cardid,int playerid){
-	int _usecard=players[playerid].cards[cardid];
+	int _usecard=players[playerid].cards[cardid].first,_rarity=players[playerid].cards[cardid].second;
 	const string spritename=sprite_names[players[playerid].spriteid];
 	players[playerid].cards.erase(players[playerid].cards.begin()+cardid);
 	cout << players[playerid].name << "使用了" << card_names[_usecard] << "\n";
@@ -216,17 +233,22 @@ void usecard(int cardid,int playerid){
 	}
 	switch(_usecard){
 	case 1:
-		cout << players[playerid].name << "成绩+10 知识点+1\n";
-		players[playerid].add_sc(10);
-		players[playerid].add_kng(1);
-		if(spritename=="xza"){
-			cout << "xza发动了被动技能！学新知识点，成绩再+2。\n";
-			players[playerid].add_sc(2);
+		{
+			int addsc=ceil(10*rarity_times[_rarity]),addkng=ceil(1*rarity_times[_rarity]);
+			cout << players[playerid].name << "成绩+" << addsc << " 知识点+" << addkng << "\n";
+			players[playerid].add_sc(addsc);
+			players[playerid].add_kng(addkng);
+			if(spritename=="xza"){
+				cout << "xza发动了被动技能！学新知识点，成绩再+2。\n";
+				players[playerid].add_sc(2);
+			}	
 		}
+		
 		break;
 	case 2:
 		{
 			int addsc=ceil(players[playerid].knowledge*0.5);
+			addsc=ceil(addsc*rarity_times[_rarity]);
 			if(spritename=="xza"){
 				cout << "xza发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
 				addsc=ceil(addsc*1.6);
@@ -242,7 +264,7 @@ void usecard(int cardid,int playerid){
 	case 3:
 		{
 			int addsc=ceil(players[playerid].knowledge*1.0),addlf=-1;
-			
+			addsc=ceil(addsc*rarity_times[_rarity]);
 			if(spritename=="xza"){
 				cout << players[playerid].name << "发动了被动技能[蓝勾爷]！狂人卷题时各效果再x1.6。\n";
 				addsc=ceil(addsc*1.6);
@@ -264,6 +286,7 @@ void usecard(int cardid,int playerid){
 	case 5:
 		{
 			int addlf=1,addsc=-7;
+			addlf=ceil(addlf*rarity_times[_rarity]);
 			cout << players[playerid].name << "生命+" << addlf << " 成绩-" << -addsc << "\n";
 			if(spritename=="lyr"){
 				addlf++;
@@ -296,6 +319,8 @@ void usecard(int cardid,int playerid){
 		{
 			int chooseplayer=choooseplayer(playerid);
 			int addsc_self=-8,addsc_it=-10,addlf_self=2,addlf_it=2;
+			addlf_self=ceil(addlf_self*rarity_times[_rarity]);
+			addlf_it=ceil(addlf_it*rarity_times[_rarity]);
 			cout << players[playerid].name << "生命+" << addlf_self << " 成绩-" << -addsc_self << "\n";
 			cout << players[chooseplayer].name << "生命+" << addlf_it << " 成绩-" << -addsc_it << "\n";
 			if(spritename=="xza"){
@@ -416,7 +441,10 @@ void printinfo(int i){
 	system("cls");
 	for(int i=1;i<=playersum;i++){
 		if(players[i].isdead)	continue;
-		cout << players[i].name << "[" << sprite_names[players[i].spriteid] << "]\t生命 " << players[i].life << "/20\t成绩 " << players[i].score << "/400\t知识点 " << players[i].knowledge << "/40\n";
+		
+		cout << players[i].name;
+		if(players[i].spriteid)	cout << "[" << sprite_names[players[i].spriteid] << "]";
+		cout << "\t生命 " << players[i].life << "/20\t成绩 " << players[i].score << "/400\t知识点 " << players[i].knowledge << "/40\n";
 	}
 	cout << "玩家：" << players[i].name << "的回合";
 	if(players[i].isAI){
@@ -439,7 +467,7 @@ int gamemain(){
 			printinfo(i);
 			if(players[i].isdead){
 				cout << players[i].name << "死了。\n";
-				getch();
+				Sleep(500);//单独设立一个时间 
 				continue;
 			}
 			//出牌
@@ -447,14 +475,18 @@ int gamemain(){
 			if(nowalive()>1){
 				if(sprite_names[players[i].spriteid]=="nmk"){
 					cout << players[i].name << "发动被动技能！每轮摸一张[腐败]。";
-					players[i].cards.push_back(5);
+					players[i].cards.push_back(make_pair(5,randchoose(make_pair(rarityprop,rarityid))));
 				}
 				do{
 					get:printinfo(i);
 					cout << "0 停止出牌\t";
 					for(int j=0,siz=players[i].cards.size();j<siz;j++){
-						int card=players[i].cards[j];
-						cout << j+1 << ' ' << card_names[card] << '\t';
+						pair<int,int> card=players[i].cards[j];
+						cout << j+1 << ' ' << card_names[card.first];
+						if(raritynames[card.second].size()){
+							cout << '[' << raritynames[card.second] << ']';
+						}
+						cout << '\t';
 					}
 					cout << '\n';
 					if(players[i].isAI==true){
@@ -468,7 +500,7 @@ int gamemain(){
 						break;
 					} else{
 						op=op-'0'-1;
-						if(players[i].canplay[players[i].cards[op]]==false){
+						if(players[i].canplay[players[i].cards[op].first]==false){
 							cout << "此卡牌无法使用！\n";
 							if(players[i].isAI){
 								Sleep(AI_THINK_MS);
@@ -559,9 +591,9 @@ int gamemain(){
 							//你是个废物！
 							int playerid=choooseplayer(i);
 							cout << players[i].name << "弃置了" << players[playerid].name << "的所有卡牌[学新知识点][做题][狂人卷题]。\n";
-							vector<int> relcard;
+							vector<pair<int,int>> relcard;
 							for(auto &x:players[i].cards){
-								if(x>=4){
+								if(x.first>=4){
 									relcard.push_back(x);
 								}
 							}
@@ -581,8 +613,12 @@ int gamemain(){
 					system("cls");
 					cout << "您还需要弃掉 " << players[i].cards.size()-6 << " 张牌。";
 					for(int j=0,siz=players[i].cards.size();j<siz;j++){
-						int card=players[i].cards[j];
-						cout << j+1 << ' ' << card_names[card] << '\t';
+						pair<int,int> card=players[i].cards[j];
+						cout << j+1 << ' ' << card_names[card.first];
+						if(card.second>1){
+							cout << '[' << raritynames[card.second] << ']';
+						}
+						cout << '\t';
 					}
 					cout << '\n';
 					if(players[i].isAI){
@@ -607,11 +643,14 @@ int gamemain(){
 	return ans;
 }
 int main(){
+	players[0].isAI=true;
+	cout.flags(ios::fixed);
+	cout.precision(2);
 	system("title 机房杀");
 	start:
 	system("cls");
 	cout<<"欢迎来到机房杀！\n";
-	cout<<"[1]游戏说明\t[2]开始游戏\n";
+	cout<<"[1]游戏说明\t[2]开始游戏\t[3]统计信息\n";
 	int x;
 	string s;
 	x=getch()-'0';
@@ -628,11 +667,17 @@ int main(){
 			cout<<"玩家"<<i<<"名字:";
 			cin>>s;
 			char op;
-			cout << "玩家是否为AI？(Y/N)\n";
+			cout << "玩家是否为AI？(Y/N)";
 			do{
 				op=toupper(getch());
 			} while(!(op=='Y' || op=='N'));
 			players[i]=player(s,op=='Y'?true:false);
+			if(op=='Y'){
+				cout << "Y\n";
+			} else{
+				cout << "N\n";
+			}
+			players_calc[players[i].name].second++;
 		}
 		int winnerid=gamemain();
 		system("cls");
@@ -640,8 +685,17 @@ int main(){
 		if(winnerid==-1)cout<<"空气……\n";
 		else{
 			cout << players[winnerid].name << "!\n";
+			players_calc[players[winnerid].name].first++;
 		}
-		system("pause");
+		getch();
+		goto start;
+	} else if(x==3){
+		system("cls");
+		cout << "姓名\t赢的对局\t总对局\t胜率\n";
+		for(map<string,pair<int,int>>::iterator it=players_calc.begin();it!=players_calc.end();++it){
+			cout << it->first << '\t' << it->second.first << '\t' << it->second.second << '\t' << 100.0*(it->second.first)/(it->second.second) << "%\n";
+		}
+		getch();
 		goto start;
 	}
 	else{
