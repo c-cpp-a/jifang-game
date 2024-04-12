@@ -1,4 +1,3 @@
-//所有人名都不是真实姓名
 #include<iostream>
 #include<vector>
 #include<random>
@@ -7,6 +6,31 @@
 #include<ctime> 
 #include<map> 
 using namespace std;
+const string sprite_names[7]={"","lyr","xza","cyq","wcy","nmk","AJ"};
+const string card_names[11]={"","学新知识点","做题","狂人卷题","禁止内卷","腐败","一起腐败","向AJ举报","急眼","翻墙","机惨"};
+const string skill_names[7][3]={//主动技能
+	{},
+	{"腐败王","制裁"},
+	{},
+	{"出题人"},
+	{"水谷"},
+	{"你是个废物！"},
+	{}
+};
+const string raritynames[5]={
+	"",
+	"罕见",
+	"稀有",
+	"传奇",
+	"神话"
+};
+constexpr int skills[7]={0,2,0,1,1,1,0};//主动技能数
+const vector<double> cardprop={0,1.7,1,0.9,1,0.8,1.1,1.3,1,1,1};//卡牌概率权重
+const vector<int> carddropid={0,1,2,3,4,5,6,7,8,9,10};
+const vector<double> rarityprop={90,30,10,3,2};//稀有度概率权重（2/3:2/9:2/27:1/45:2/135） 
+const vector<int> rarityid={0,1,2,3,4};
+constexpr double rarity_times[5]={1,1.66,2.7889,4.657463,7.77796321};//稀有度对有益效果的加成 
+constexpr int AI_THINK_MS=200;//AI思考毫秒数
 namespace Random{
 	default_random_engine e(time(0));
 	int randint(int l,int r){
@@ -37,12 +61,15 @@ struct player{
 	int knowledge=0;//知识点
 	vector<pair<int,int>> cards;//手中卡牌 first=卡牌id second=稀有度 
 	bool isdead=false;//是否死亡
-	bool corruption=false;//是否腐败
-	bool involution=false;//是否内卷
-	int noend=0;//（仅AJ有效）不死之身次数
-	bool canplay[10];//能否使用此卡牌
+//	bool corruption=false;//是否腐败
+//	bool involution=false;//是否内卷
+//	int noend=0;//（仅AJ有效）不死之身次数
+//	bool canplay[10];//能否使用此卡牌
 	bool isAI=false;//是否是AI代管
+	map<string,string> tags;//状态
 	player(const string &_name="",bool _ai=false):name(_name),isAI(_ai){
+		tags["corruption"]="false";
+		tags["involution"]="false";
 		if(name=="lyr"){
 			spriteid=1;
 		} else if(name=="xza"){
@@ -58,12 +85,15 @@ struct player{
 		} else{
 			spriteid=randint(0,6);
 		}
+		tags["spriteid"]=to_string(spriteid);
 		if(spriteid==6){
 			//AJ
-			noend=2;
+//			noend=2;
+			tags["noend"]="2";
 		}
 		for(int i=0;i<10;i++){
-			canplay[i]=true;
+//			canplay[i]=true;
+			tags[card_names[i]]="default";
 		}
 	}
 	inline void used(int cardid){
@@ -81,33 +111,12 @@ struct player{
 	void add_kng(int delta){
 		knowledge=min(knowledge+delta,40);
 	}
+	int jcturn(){
+		if(tags["jced"].empty())	return 0;
+		else	return atoi(tags["jced"].c_str());
+	}
 }players[1001];
 int playersum;//人数
-const string sprite_names[7]={"","lyr","xza","cyq","wcy","nmk","AJ"};
-const string card_names[10]={"","学新知识点","做题","狂人卷题","禁止内卷","腐败","一起腐败","向AJ举报","急眼","翻墙"};
-const string skill_names[7][3]={//主动技能
-	{},
-	{"腐败王","制裁"},
-	{},
-	{"出题人"},
-	{"水谷"},
-	{"你是个废物！"},
-	{}
-};
-const string raritynames[5]={
-	"",
-	"罕见",
-	"稀有",
-	"传奇",
-	"神话"
-};
-constexpr int skills[7]={0,2,0,1,1,1,0};//主动技能数
-const vector<double> cardprop={0,1.7,1,0.9,1,0.8,1.1,1.3,1,1};//卡牌概率权重
-const vector<int> carddropid={0,1,2,3,4,5,6,7,8,9};
-const vector<double> rarityprop={90,30,10,3,2};//稀有度概率权重（2/3:2/9:2/27:1/45:2/135） 
-const vector<int> rarityid={0,1,2,3,4};
-constexpr double rarity_times[5]={1,1.66,2.7889,4.657463,7.77796321};//稀有度对有益效果的加成 
-constexpr int AI_THINK_MS=200;//AI思考毫秒数
 map<string,pair<int,int>> players_calc;//统计玩家的 key=名字 first=赢得局数 second=总局数 
 int nowalive(){
 	int ans=0;
@@ -127,6 +136,7 @@ void help(){
 	cout<<"2024.1.29 游戏细节优化，修复bug" << endl;
 	cout<<"2024.1.30 增加统计信息显示" << endl;
 	cout<<"2024.1.31 增加功能：卡牌稀有度" << endl;
+	cout<<"2024.4.12 增加卡牌：机惨" << endl;
 	cout<<"开发：lyr、xza、cyq"<<endl;
 	cout<<"规则："<<endl;
 	cout<<"  1.每回合结束时，将手中的牌弃到6张。"<<endl;
@@ -144,6 +154,7 @@ void help(){
 	cout<<"  7.向AJ举报：你选择一名其他角色，其生命-1，如果其本轮成为过卡牌5、6的目标，改为生命-2。"<<endl;
 	cout<<"  8.急眼：你选择一名其他角色，其生命-2，你成绩-5，然后如果其本轮成为过卡牌5、6的目标，其成绩-5。"<<endl;
 	cout<<"  9.翻墙：除了本回合成为卡牌1、2、3的目标的人外，其他所有角色成绩-7，生命-1，然后你有50%概率成绩-3，生命-1。"<<endl;
+	cout<<"  10.机惨：你选择一名其他角色，其成绩在接下来3回合中每回合-1，并且不能使用卡牌（卡牌正常抽取，可以弃牌）"<<endl;
 	cout<<"有概率摸到更高稀有度，每一级有益效果*1.67（对最终结果向上取整），优先于被动技能。"<<endl;
 	cout<<"角色："<<endl;
 	cout<<"  1.lyr：使用卡牌5时生命+1，成绩-2。"<<endl;
@@ -192,9 +203,15 @@ int choooseplayer(int playerid){
 }
 void player::add_lf(int delta){
 	life=min(life+delta,20);
-	if(life>0 && life<=2 && spriteid==6 && noend){
+	if(life>0 && life<=2 && spriteid==6 && tags["noend"].size()){
 		//AJ
-		--noend;
+		string s=tags["noend"];
+//		tags["node"];
+		if(s=="1"){
+			tags["noend"]=string();
+		} else{
+			tags["noend"]=to_string(stoi(s)-1);
+		}
 		cout << "AJ发动了触发技能[不死之身]！请选择：\n";
 		cout << "[1]生命+2\t[2]死去，但是选择A，他/她生命-5，成绩归0。\n";
 		int op;
@@ -226,10 +243,12 @@ void usecard(int cardid,int playerid){
 	players[playerid].cards.erase(players[playerid].cards.begin()+cardid);
 	cout << players[playerid].name << "使用了" << card_names[_usecard] << "\n";
 	if(_usecard>=1 && _usecard<=3){
-		players[playerid].involution=true;
+//		players[playerid].involution=true;
+		players[playerid].tags["involution"]="true";
 	}
 	if(_usecard>=5 && _usecard<=6){
-		players[playerid].corruption=true;
+//		players[playerid].corruption=true;
+		players[playerid].tags["corruption"]="true";
 	}
 	switch(_usecard){
 	case 1:
@@ -279,7 +298,8 @@ void usecard(int cardid,int playerid){
 		{
 			cout << "所有人本轮不能出[学新知识点][做题][狂人卷题]。\n";
 			for(int i=1;i<=playersum;i++){
-				players[i].canplay[1]=players[i].canplay[2]=players[i].canplay[3]=false;
+//				players[i].canplay[1]=players[i].canplay[2]=players[i].canplay[3]=false;
+				players[i].tags[card_names[1]]=players[i].tags[card_names[2]]=players[i].tags[card_names[3]]="delete";
 			}
 		}
 		break;
@@ -295,7 +315,8 @@ void usecard(int cardid,int playerid){
 			} else if(spritename=="xza"){
 				if(randint(1,10)==1){
 					cout << players[playerid].name << "发动了被动技能[透明度]！视为使用卡牌2且不视为腐败。\n";
-					players[playerid].corruption=false;
+//					players[playerid].corruption=false;
+					players[playerid].tags["corruption"]="false";
 					int addsc=ceil(players[playerid].knowledge*0.5);
 					cout << players[playerid].name << "发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
 					cout << players[playerid].name << "成绩+" << addsc << "\n";
@@ -309,7 +330,8 @@ void usecard(int cardid,int playerid){
 				}
 			} else if(spritename=="nmk"){
 				cout << players[playerid].name << "发动了被动技能[腐败小助手]！清空本轮腐败效果。\n";
-				players[playerid].corruption=false;
+//				players[playerid].corruption=false;
+				players[playerid].tags["corruption"]="false";
 			}
 			players[playerid].add_lf(addlf);
 			players[playerid].add_sc(addsc);
@@ -328,7 +350,8 @@ void usecard(int cardid,int playerid){
 				addsc_self=-players[playerid].score/4;
 				if(randint(1,10)==1){
 					cout << players[playerid].name << "发动了被动技能[透明度]！视为使用卡牌2且不视为腐败。\n";
-					players[playerid].corruption=false;
+//					players[playerid].corruption=false;
+					players[playerid].tags["corruption"]="false";
 					int addsc=ceil(players[playerid].knowledge*0.5);
 					cout << players[playerid].name << "成绩+" << addsc << "\n";
 					cout << "xza发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
@@ -342,7 +365,8 @@ void usecard(int cardid,int playerid){
 				}
 			} else if(spritename=="nmk"){
 				cout << players[playerid].name << "发动了被动技能[腐败小助手]！清空本轮腐败效果。\n";
-				players[playerid].corruption=false;
+//				players[playerid].corruption=false;
+				players[playerid].tags["corruption"]="false";
 			}
 			players[playerid].add_lf(addlf_self);
 			players[playerid].add_sc(addsc_self);
@@ -356,7 +380,7 @@ void usecard(int cardid,int playerid){
 				cout << "发动被动技能[抓腐]！使用卡牌7对所有人（自己除外）有效。\n";
 				for(int i=1;i<=playersum;i++){
 					if(i==playerid)	continue;
-					if(players[i].corruption){
+					if(players[i].tags["corruption"]=="true"){
 						cout << players[i].name << "在腐败。生命-3。\n";
 						players[i].add_lf(-3);
 					} else{
@@ -373,7 +397,7 @@ void usecard(int cardid,int playerid){
 				break;
 			}
 			int addlf=-1;
-			if(players[chooseplayer].corruption)	addlf-=2;
+			if(players[chooseplayer].tags["corruption"]=="true")	addlf-=2;
 			players[chooseplayer].add_lf(addlf);
 			cout << players[chooseplayer].name << "生命-" << -addlf << "\n";
 		}
@@ -388,7 +412,7 @@ void usecard(int cardid,int playerid){
 					if(i==playerid || players[playerid].isdead)	continue;
 					cout << players[i].name << "生命-2 ";
 					players[i].add_lf(-2);
-					if(players[i].corruption){
+					if(players[i].tags["corruption"]=="true"){
 						cout << "成绩-5";
 						players[i].add_sc(-5);
 					}
@@ -398,7 +422,7 @@ void usecard(int cardid,int playerid){
 			}
 			int chooseplayer=choooseplayer(playerid);
 			int addlf_it=-2,addsc_self=-5,addsc_it=0;
-			if(players[chooseplayer].corruption)	addsc_it-=5;
+			if(players[chooseplayer].tags["corruption"]=="true")	addsc_it-=5;
 			cout << players[playerid].name << "成绩-" << -addsc_self << "\n";
 			cout << players[chooseplayer].name << "生命-" << -addlf_it;
 			if(addsc_it){
@@ -414,7 +438,7 @@ void usecard(int cardid,int playerid){
 		{
 			for(int i=1;i<=playersum;i++){
 				if(i==playerid)	continue;
-				if(players[i].involution){
+				if(players[i].tags["involution"]=="true"){
 					cout << players[i].name << "在内卷\n";
 				} else{
 					int addsc=-7,addlf=-1;
@@ -430,10 +454,19 @@ void usecard(int cardid,int playerid){
 			}
 		}
 		break;
+	case 10:
+		{
+			int chooseplayer=choooseplayer(playerid);
+			int jcnums=ceil(3*rarity_times[_rarity]);
+			players[chooseplayer].tags["jced"]=to_string(jcnums);
+			cout << players[chooseplayer].name << "被机惨了，接下来" << jcnums << "个回合每回合无法行动，且每回合成绩-1。\n";
+		}
+		break;
 	}
 	if(players[playerid].isAI){
 		Sleep(AI_THINK_MS);
 	} else{
+		
 		getch();
 	}
 }
@@ -444,7 +477,11 @@ void printinfo(int i){
 		
 		cout << players[i].name;
 		if(players[i].spriteid)	cout << "[" << sprite_names[players[i].spriteid] << "]";
-		cout << "\t生命 " << players[i].life << "/20\t成绩 " << players[i].score << "/400\t知识点 " << players[i].knowledge << "/40\n";
+		cout << "\t生命 " << players[i].life << "/20\t成绩 " << players[i].score << "/400\t知识点 " << players[i].knowledge << "/40";
+		if(players[i].jcturn()){
+			cout << "[机惨还剩 " << players[i].jcturn() << " 回合]";
+		}
+		cout << "\n";
 	}
 	cout << "玩家：" << players[i].name << "的回合";
 	if(players[i].isAI){
@@ -456,12 +493,27 @@ int gamemain(){
 	//返回值为获胜玩家id，为-1表示没有人获胜
 	while(nowalive()>1){
 		for(int i=1;i<=playersum;i++){
-			players[i].corruption=players[i].involution=false;
+			players[i].tags["corruption"]=players[i].tags["involution"]=false;
 			players[i].cards.push_back(randcardid());
 			players[i].cards.push_back(randcardid());
-			for(int j=0;j<10;j++){
-				players[i].canplay[j]=true;
+			
+			int jcturns=players[i].jcturn();
+			if(jcturns==0){
+				for(int j=0;j<10;j++){
+//				players[i].canplay[j]=true;
+					players[i].tags[card_names[j]]="default";
+				}
+			} else{
+				players[i].tags["jced"]=to_string(--jcturns);
+				if(jcturns==0){
+					players[i].tags["jced"].clear();
+				}
+//				for(int j=0;j<10;j++){
+////				players[i].canplay[j]=true;
+//					players[i].tags[card_names[j]]="delete";
+//				}
 			}
+			
 		}
 		for(int i=1;i<=playersum;i++){
 			printinfo(i);
@@ -477,41 +529,47 @@ int gamemain(){
 					cout << players[i].name << "发动被动技能！每轮摸一张[腐败]。";
 					players[i].cards.push_back(make_pair(5,randchoose(make_pair(rarityprop,rarityid))));
 				}
-				do{
-					get:printinfo(i);
-					cout << "0 停止出牌\t";
-					for(int j=0,siz=players[i].cards.size();j<siz;j++){
-						pair<int,int> card=players[i].cards[j];
-						cout << j+1 << ' ' << card_names[card.first];
-						if(raritynames[card.second].size()){
-							cout << '[' << raritynames[card.second] << ']';
-						}
-						cout << '\t';
-					}
-					cout << '\n';
-					if(players[i].isAI==true){
-						Sleep(AI_THINK_MS);
-						op=randint('0',int(players[i].cards.size()+'0'));
-					} else{
-						op=getch();
-						while(!(op>='0' && op<=int(players[i].cards.size()+'0')))	op=getch();	
-					}
-					if(op=='0'){
-						break;
-					} else{
-						op=op-'0'-1;
-						if(players[i].canplay[players[i].cards[op].first]==false){
-							cout << "此卡牌无法使用！\n";
-							if(players[i].isAI){
-								Sleep(AI_THINK_MS);
-							} else{
-								getch();	
+				if(players[i].jcturn()>=1){
+					cout << players[i].name << "被机惨了，所有卡牌被禁用，成绩-1。\n";
+					players[i].add_sc(-1);
+					Sleep(500);
+				} else{
+					do{
+						get:printinfo(i);
+						cout << "0 停止出牌\t";
+						for(int j=0,siz=players[i].cards.size();j<siz;j++){
+							pair<int,int> card=players[i].cards[j];
+							cout << j+1 << ' ' << card_names[card.first];
+							if(raritynames[card.second].size()){
+								cout << '[' << raritynames[card.second] << ']';
 							}
-							goto get;
+							cout << '\t';
 						}
-						usecard(op,i);
-					}
-				}while(op!='0' && players[i].isdead==false && nowalive()>1);
+						cout << '\n';
+						if(players[i].isAI==true){
+							Sleep(AI_THINK_MS);
+							op=randint('0',int(players[i].cards.size()+'0'));
+						} else{
+							op=getch();
+							while(!(op>='0' && op<=int(players[i].cards.size()+'0')))	op=getch();	
+						}
+						if(op=='0'){
+							break;
+						} else{
+							op=op-'0'-1;
+							if(players[i].tags[card_names[players[i].cards[op].first]]=="delete"){
+								cout << "此卡牌无法使用！\n";
+								if(players[i].isAI){
+									Sleep(AI_THINK_MS);
+								} else{
+									getch();	
+								}
+								goto get;
+							}
+							usecard(op,i);
+						}
+					}while(op!='0' && players[i].isdead==false && nowalive()>1);
+				}
 				printinfo(i);
 				cout << "0 跳过技能使用";
 				int skill_cnt=skills[players[i].spriteid];
@@ -541,9 +599,11 @@ int gamemain(){
 							cout << players[i].name << "发动了被动技能！使用卡牌5时生命再+1，成绩再-2。\n";
 							players[i].add_lf(addlf);
 							players[i].add_sc(addsc);
-							players[i].corruption=true;
+//							players[i].corruption=true;
+							players[i].tags["corruption"]="true";
 							for(int j=1;j<=playersum;j++){
-								players[j].canplay[1]=false;
+//								players[j].canplay[1]=false;
+								players[j].tags["学新知识点"]="delete";
 							}
 						} else if(op==1){
 							//制裁
@@ -552,7 +612,8 @@ int gamemain(){
 							players[i].add_lf(-5);
 							for(int j=1;j<=playersum;j++){
 								if(j==i)	continue;
-								players[j].canplay[4]=players[j].canplay[5]=players[j].canplay[6]=false;
+//								players[j].canplay[4]=players[j].canplay[5]=players[j].canplay[6]=false;
+								players[j].tags["禁止内卷"]=players[j].tags["腐败"]=players[j].tags["一起腐败"]="delete";
 							}
 						}
 						break;
@@ -572,7 +633,8 @@ int gamemain(){
 								}
 								cout << players[j].name << "成绩+" << addsc << "\n";
 								players[j].add_sc(addsc);
-								players[j].involution=true;
+//								players[j].involution=true;
+								players[j].tags["involution"]=true;
 							}
 						}
 						break;
@@ -581,8 +643,10 @@ int gamemain(){
 							//水谷
 							cout << "本轮无法出[禁止内卷]。已有的[禁止内卷]无效（卡牌[学新知识点][做题][狂人卷题]有效），无视技能。\n";
 							for(int j=1;j<=playersum;j++){
-								players[j].canplay[1]=players[j].canplay[2]=players[j].canplay[3]=true;
-								players[j].canplay[4]=false;
+//								players[j].canplay[1]=players[j].canplay[2]=players[j].canplay[3]=true;
+//								players[j].canplay[4]=false;
+								players[j].tags["学新知识点"]=players[j].tags["做题"]=players[j].tags["狂人卷题"]="default";
+								players[j].tags["禁止内卷"]="delete";
 							}
 						}
 						break;
