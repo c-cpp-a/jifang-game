@@ -501,12 +501,15 @@ struct Group{
 			int jcturns=players[i].jcturn();
 			if(jcturns==0){
 				for(int j=0;j<=cardnums;j++){
-					if(players[i].tags[card_names[i]]=="delete")	players[i].tags[card_names[j]]="default";
+					if(players[i].tags[card_names[i]]!="always_delete")	players[i].tags[card_names[j]]="default";
 				}
 			} else{
 				players[i].tags["jced"]=to_string(--jcturns);
 				if(jcturns==0){
 					players[i].tags["jced"].clear();
+					for(int j=0;j<=cardnums;j++){
+						if(players[i].tags[card_names[i]]!="always_delete")	players[i].tags[card_names[j]]="default";
+					}
 				}
 			}
 		}
