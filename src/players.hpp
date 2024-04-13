@@ -76,6 +76,26 @@ struct player{
 		if(tags["jced"].empty())	return 0;
 		else	return stoi(tags["jced"]);
 	}
+	void showcard(int cardid){
+//		string s,cl;
+//		map<string,int> mp;
+//		mp["black"]=0x00;
+//		mp["blue"]=0x01;
+//		mp["green"]=0x02;
+//		mp["red"]=0x0C;
+//		mp["purple"]=0x05;
+//		mp["yellow"]=0x0E;
+//		mp["white"]=0x07;
+//		mp["gray"]=0x08;
+//		mp["cyan"]=0x0B;
+		cout << cardid+1 << ' ';
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),rarity_col[cards[cardid].second]);
+		cout << card_names[cards[cardid].first];
+		if(raritynames[cards[cardid].second].size()){
+			cout << '[' << raritynames[cards[cardid].second] << ']';
+		}
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),0x07);
+	}
 };
 namespace User_input{
 	player getplayer(){
@@ -492,17 +512,22 @@ struct Group{
 				int addsc=nowalive();
 				cout << players[i].name << "被机惨了，所有卡牌被禁用，成绩-" << addsc << "。\n";
 				players[i].add_sc(-addsc);
-				Sleep(500);
+				Sleep(PAUSE_MS);
 			} else{
 				do{
 					get:gameinfo(players[i]);
 					cout << "0 停止出牌\t";
 					for(int j=0,siz=players[i].cards.size();j<siz;j++){
 						pair<int,int> card=players[i].cards[j];
-						cout << j+1 << ' ' << card_names[card.first];
-						if(raritynames[card.second].size()){
-							cout << '[' << raritynames[card.second] << ']';
-						}
+//						cout << j+1 << ' ';
+						players[i].showcard(j);
+//						SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),rarity_col[card.second]);
+//						cout << card_names[card.first];
+//						if(raritynames[card.second].size()){
+//							cout << '[' << raritynames[card.second] << ']';
+//						}
+//						SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),0x07);
+						
 						cout << '\t';
 					}
 					cout << '\n';
@@ -636,11 +661,12 @@ struct Group{
 			system("cls");
 			cout << "您还需要弃掉 " << players[i].cards.size()-6 << " 张牌。";
 			for(int j=0,siz=players[i].cards.size();j<siz;j++){
-				pair<int,int> card=players[i].cards[j];
-				cout << j+1 << ' ' << card_names[card.first];
-				if(card.second>1){
-					cout << '[' << raritynames[card.second] << ']';
-				}
+//				pair<int,int> card=players[i].cards[j];
+//				cout << j+1 << ' ' << card_names[card.first];
+//				if(card.second>1){
+//					cout << '[' << raritynames[card.second] << ']';
+//				}
+				players[i].showcard(j);
 				cout << '\t';
 			}
 			cout << '\n';
@@ -662,7 +688,7 @@ struct Group{
 				gameinfo(players[i]);
 				if(players[i].isdead){
 					cout << players[i].name << "死了。\n";
-					Sleep(500);
+					Sleep(PAUSE_MS);
 					continue;
 				}
 				startcard(i);
