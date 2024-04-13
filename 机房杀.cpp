@@ -5,6 +5,8 @@
 #include<windows.h>
 #include<ctime> 
 #include<map> 
+#include<fstream>
+#include<sstream>
 using namespace std;
 const string sprite_names[7]={"","lyr","xza","cyq","wcy","nmk","AJ"};
 const string card_names[11]={"","学新知识点","做题","狂人卷题","禁止内卷","腐败","一起腐败","向AJ举报","急眼","翻墙","机惨"};
@@ -119,7 +121,7 @@ struct player{
 	}
 	int jcturn(){
 		if(tags["jced"].empty())	return 0;
-		else	return atoi(tags["jced"].c_str());
+		else	return stoi(tags["jced"]);
 	}
 };
 namespace User_input{
@@ -148,6 +150,7 @@ namespace User_input{
 		cout<<"2024.1.30 增加统计信息显示" << endl;
 		cout<<"2024.1.31 增加功能：卡牌稀有度" << endl;
 		cout<<"2024.4.12 增加卡牌：机惨" << endl;
+		cout<<"2024.4.13 增加功能：禁用卡牌" << endl;
 		cout<<"开发：lyr、xza、cyq"<<endl;
 		cout<<"规则："<<endl;
 		cout<<"  1.每回合结束时，将手中的牌弃到6张。"<<endl;
@@ -186,8 +189,13 @@ namespace User_input{
 		cout<<"  6.AJ：在你腐败时，其它角色对你使用的卡牌7改为“你自减2点生命”。"<<endl;
 		cout<<"		（1）抓腐：你使用卡牌7时。"<<endl;
 		cout<<"		（2）不死之身：每局限两次，若你的生命<=2且不为0，你选择一项：1.生命+2；2.你选择一名其它角色，令其生命-5，成绩=0，然后你死亡。"<<endl;
+		cout<<"禁用卡牌：" << endl;
+		cout<<"你可以将一个配置文件拖入可执行文件中，配置文件由若干行组成，每一行格式形如[name delete=c1[,c2,c3,...]]。"<<endl;
+		cout<<"name表示你要对其使用禁用的玩家名称。"<<endl;
+		cout<<"c1,c2,c3,...依次表示你要对此玩家禁用的卡牌，你指定的玩家在接下来的所有游戏中都不能使用这些卡牌。"<<endl;
 		system("pause");
 	}
+	
 }
 using namespace User_input;
 struct Group{
@@ -201,6 +209,9 @@ struct Group{
 			player tmp;
 			do{
 				tmp=getplayer();
+				if(checked[tmp.name]){
+					cout << "此名字已被使用！\n";
+				}
 			} while(checked[tmp.name]);
 			checked[tmp.name]=true;
 			players.push_back(tmp);
@@ -209,11 +220,6 @@ struct Group{
 	~Group()=default;
 	int nowalive(){
 		int ans=0;
-//		for(int i=1;i<=playersum;i++){
-//			if(players[i].isdead==false){
-//				++ans;
-//			}
-//		}
 		for(auto &p:players){
 			ans+=(p.isdead==false);
 		}
@@ -265,11 +271,9 @@ struct Group{
 		players[playerid].cards.erase(players[playerid].cards.begin()+cardid);
 		cout << players[playerid].name << "使用了" << card_names[_usecard] << "\n";
 		if(_usecard>=1 && _usecard<=3){
-//		players[playerid].involution=true;
 			players[playerid].tags["involution"]="true";
 		}
 		if(_usecard>=5 && _usecard<=6){
-//		players[playerid].corruption=true;
 			players[playerid].tags["corruption"]="true";
 		}
 		switch(_usecard){
@@ -320,8 +324,7 @@ struct Group{
 			{
 				cout << "所有人本轮不能出[学新知识点][做题][狂人卷题]。\n";
 				for(int i=1;i<=playersum;i++){
-//				players[i].canplay[1]=players[i].canplay[2]=players[i].canplay[3]=false;
-					players[i].tags[card_names[1]]=players[i].tags[card_names[2]]=players[i].tags[card_names[3]]="delete";
+					players[i].tags["学新知识点"]=players[i].tags["做题"]=players[i].tags["狂人卷题"]="delete";
 				}
 			}
 			break;
@@ -337,7 +340,6 @@ struct Group{
 				} else if(spritename=="xza"){
 					if(randint(1,10)==1){
 						cout << players[playerid].name << "发动了被动技能[透明度]！视为使用卡牌2且不视为腐败。\n";
-//					players[playerid].corruption=false;
 						players[playerid].tags["corruption"]="false";
 						int addsc=ceil(players[playerid].knowledge*0.5);
 						cout << players[playerid].name << "发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
@@ -352,7 +354,6 @@ struct Group{
 					}
 				} else if(spritename=="nmk"){
 					cout << players[playerid].name << "发动了被动技能[腐败小助手]！清空本轮腐败效果。\n";
-//				players[playerid].corruption=false;
 					players[playerid].tags["corruption"]="false";
 				}
 				players[playerid].add_lf(addlf);
@@ -372,7 +373,6 @@ struct Group{
 					addsc_self=-players[playerid].score/4;
 					if(randint(1,10)==1){
 						cout << players[playerid].name << "发动了被动技能[透明度]！视为使用卡牌2且不视为腐败。\n";
-//					players[playerid].corruption=false;
 						players[playerid].tags["corruption"]="false";
 						int addsc=ceil(players[playerid].knowledge*0.5);
 						cout << players[playerid].name << "成绩+" << addsc << "\n";
@@ -387,7 +387,6 @@ struct Group{
 					}
 				} else if(spritename=="nmk"){
 					cout << players[playerid].name << "发动了被动技能[腐败小助手]！清空本轮腐败效果。\n";
-//				players[playerid].corruption=false;
 					players[playerid].tags["corruption"]="false";
 				}
 				players[playerid].add_lf(addlf_self);
@@ -488,7 +487,6 @@ struct Group{
 		if(players[playerid].isAI){
 			Sleep(AI_THINK_MS);
 		} else{
-			
 			getch();
 		}
 	}
@@ -501,18 +499,13 @@ struct Group{
 			int jcturns=players[i].jcturn();
 			if(jcturns==0){
 				for(int j=0;j<10;j++){
-//				players[i].canplay[j]=true;
-					players[i].tags[card_names[j]]="default";
+					if(players[i].tags[card_names[i]]=="delete")	players[i].tags[card_names[j]]="default";
 				}
 			} else{
 				players[i].tags["jced"]=to_string(--jcturns);
 				if(jcturns==0){
 					players[i].tags["jced"].clear();
 				}
-//				for(int j=0;j<10;j++){
-////				players[i].canplay[j]=true;
-//					players[i].tags[card_names[j]]="delete";
-//				}
 			}
 		}
 	}
@@ -552,7 +545,7 @@ struct Group{
 						break;
 					} else{
 						op=op-'0'-1;
-						if(players[i].tags[card_names[players[i].cards[op].first]]=="delete"){
+						if(players[i].tags[card_names[players[i].cards[op].first]]!="default"){
 							cout << "此卡牌无法使用！\n";
 							if(players[i].isAI){
 								Sleep(AI_THINK_MS);
@@ -598,10 +591,8 @@ struct Group{
 					cout << players[i].name << "发动了被动技能！使用卡牌5时生命再+1，成绩再-2。\n";
 					players[i].add_lf(addlf);
 					players[i].add_sc(addsc);
-//							players[i].corruption=true;
 					players[i].tags["corruption"]="true";
 					for(int j=1;j<=playersum;j++){
-//								players[j].canplay[1]=false;
 						players[j].tags["学新知识点"]="delete";
 					}
 				} else if(op==1){
@@ -611,7 +602,6 @@ struct Group{
 					players[i].add_lf(-5);
 					for(int j=1;j<=playersum;j++){
 						if(j==i)	continue;
-//								players[j].canplay[4]=players[j].canplay[5]=players[j].canplay[6]=false;
 						players[j].tags["禁止内卷"]=players[j].tags["腐败"]=players[j].tags["一起腐败"]="delete";
 					}
 				}
@@ -632,7 +622,6 @@ struct Group{
 						}
 						cout << players[j].name << "成绩+" << addsc << "\n";
 						players[j].add_sc(addsc);
-//								players[j].involution=true;
 						players[j].tags["involution"]=true;
 					}
 				}
@@ -642,8 +631,6 @@ struct Group{
 					//水谷
 					cout << "本轮无法出[禁止内卷]。已有的[禁止内卷]无效（卡牌[学新知识点][做题][狂人卷题]有效），无视技能。\n";
 					for(int j=1;j<=playersum;j++){
-//								players[j].canplay[1]=players[j].canplay[2]=players[j].canplay[3]=true;
-//								players[j].canplay[4]=false;
 						players[j].tags["学新知识点"]=players[j].tags["做题"]=players[j].tags["狂人卷题"]="default";
 						players[j].tags["禁止内卷"]="delete";
 					}
@@ -721,6 +708,7 @@ struct Group{
 };
 auto pgroup=Group();
 map<string,pair<int,int>> players_calc;//统计玩家的 key=名字 first=赢得局数 second=总局数 
+vector<pair<string,vector<string>>> deletecards;//被禁用的卡牌
 void player::add_lf(int delta){
 	life=min(life+delta,20);
 	if(life>0 && life<=2 && spriteid==6 && tags["noend"].size()){
@@ -755,8 +743,66 @@ void player::add_lf(int delta){
 		isdead=true;
 	}
 }
-int main(){
-//	players[0].isAI=true;
+void deletecard(){
+	for(auto &perdel:deletecards){
+		for(auto &pl:pgroup.players){
+			if(pl.name==perdel.first){
+				for(auto &card:perdel.second){
+					pl.tags[card]="always_delete";
+				}
+			}
+		}
+	}
+}
+bool setdelete(const char * filename){
+	static char buff1[1001]={},buff2[100001]={};
+	string tmpline;
+	string tmp,tmp2;
+	vector<string> tmpp;
+	istringstream sin;
+	ifstream fin(filename);
+	while(getline(fin,tmpline) && tmpline.size()){
+		if(tmpline.back()!=']')	return false;
+		int flag=sscanf(tmpline.c_str(),"[%s delete=%s]",buff1,buff2);
+		if(flag!=2){
+			return false;
+		}
+		tmp=string(buff1);
+		tmp2=string(buff2);
+		sin.str(tmp2);
+		tmp2.clear();
+		while(getline(sin,tmp2,',')){
+			tmpp.push_back(tmp2);
+		}
+		deletecards.push_back(make_pair(tmp,tmpp));
+		deletecards.back().second.back().pop_back();
+	}
+	fin.close();
+	return true;
+}
+int main(int argc,char ** argv){
+	if(argc>1){
+		//TODO 支持配置文件
+		//配置文件格式：
+		//对于每一行 [name delete=xxx]，xxx是你想要禁用的卡牌，用,隔开
+		bool flag=setdelete(argv[1]);
+		if(!flag){
+			cerr << "不支持导入此配置文件！\n";
+			throw "";
+		}
+		cout << "设置中……\n";
+		for(auto &perdel:deletecards){
+			cout << "对于玩家 " << perdel.first << "，禁用卡牌 ";
+			for(auto &card:perdel.second){
+				cout << card << "，";
+			}
+			cout << "完毕。\n";
+		}
+		deletecard();
+		cout << "设置完成\n";
+		system("pause");
+		system("cls");
+	}
 	cout.flags(ios::fixed);
 	cout.precision(2);
 	system("title 机房杀");
