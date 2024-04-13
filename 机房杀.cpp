@@ -8,6 +8,7 @@
 #include<fstream>
 #include<sstream>
 using namespace std;
+constexpr int cardnums=10;
 const string sprite_names[7]={"","lyr","xza","cyq","wcy","nmk","AJ"};
 const string card_names[11]={"","学新知识点","做题","狂人卷题","禁止内卷","腐败","一起腐败","向AJ举报","急眼","翻墙","机惨"};
 const string skill_names[7][3]={//主动技能
@@ -96,7 +97,7 @@ struct player{
 //			noend=2;
 			tags["noend"]="2";
 		}
-		for(int i=0;i<10;i++){
+		for(int i=0;i<=cardnums;i++){
 //			canplay[i]=true;
 			tags[card_names[i]]="default";
 		}
@@ -190,9 +191,10 @@ namespace User_input{
 		cout<<"		（1）抓腐：你使用卡牌7时。"<<endl;
 		cout<<"		（2）不死之身：每局限两次，若你的生命<=2且不为0，你选择一项：1.生命+2；2.你选择一名其它角色，令其生命-5，成绩=0，然后你死亡。"<<endl;
 		cout<<"禁用卡牌：" << endl;
-		cout<<"你可以将一个配置文件拖入可执行文件中，配置文件由若干行组成，每一行格式形如[name delete=c1[,c2,c3,...]]。"<<endl;
-		cout<<"name表示你要对其使用禁用的玩家名称。"<<endl;
-		cout<<"c1,c2,c3,...依次表示你要对此玩家禁用的卡牌，你指定的玩家在接下来的所有游戏中都不能使用这些卡牌。"<<endl;
+		cout<<"  你可以将一个配置文件拖入可执行文件中，配置文件由若干行组成，每一行格式形如[name delete=c1[,c2,c3,...]]。"<<endl;
+		cout<<"  name表示你要对其使用禁用的玩家名称。"<<endl;
+		cout<<"  c1,c2,c3,...依次表示你要对此玩家禁用的卡牌，你指定的玩家在接下来的所有游戏中都不能使用这些卡牌。"<<endl;
+		cout<<"  请注意你的配置文件编码，如果使用非ANSI编码，导入时可能会乱码。"<<endl;
 		system("pause");
 	}
 	
@@ -498,7 +500,7 @@ struct Group{
 			
 			int jcturns=players[i].jcturn();
 			if(jcturns==0){
-				for(int j=0;j<10;j++){
+				for(int j=0;j<=cardnums;j++){
 					if(players[i].tags[card_names[i]]=="delete")	players[i].tags[card_names[j]]="default";
 				}
 			} else{
