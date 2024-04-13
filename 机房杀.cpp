@@ -28,7 +28,7 @@ const string raritynames[5]={
 	"神话"
 };
 constexpr int skills[7]={0,2,0,1,1,1,0};//主动技能数
-const vector<double> cardprop={0,1.7,1,0.9,1,0.8,1.1,1.3,1,1,1};//卡牌概率权重
+const vector<double> cardprop={0,1.7,1.3,0.9,1,0.8,1.1,1.3,1,1,0.7};//卡牌概率权重
 const vector<int> carddropid={0,1,2,3,4,5,6,7,8,9,10};
 const vector<double> rarityprop={90,30,10,3,2};//稀有度概率权重（2/3:2/9:2/27:1/45:2/135） 
 const vector<int> rarityid={0,1,2,3,4};
@@ -156,7 +156,7 @@ namespace User_input{
 		cout<<"规则："<<endl;
 		cout<<"  1.每回合结束时，将手中的牌弃到6张。"<<endl;
 		cout<<"  2.角色技能如果没有备注，每回合限一次，牌没有限制。"<<endl;
-		cout<<"  3.成绩<0时让成绩=0，然后生命-2，生命=0时如果没有特殊技能，角色死亡。"<<endl;
+		cout<<"  3.成绩<0时让成绩=0，然后生命-6，生命<0时如果没有特殊技能，角色死亡。"<<endl;
 		cout<<"  4.每回合开始时，摸2张牌。"<<endl;
 		cout<<"  5.游戏开始时，角色的生命为20，成绩为100，知识点为0。"<<endl;
 		cout<<"卡牌（普通卡牌）："<<endl;
@@ -164,13 +164,13 @@ namespace User_input{
 		cout<<"  2.做题：成绩加上知识点数量*0.5（向上取整）"<<endl;
 		cout<<"  3.狂人卷题：生命-1，成绩+知识点数量*1"<<endl;
 		cout<<"  4.禁止内卷：所有角色本轮无法使用卡牌1、2、3。"<<endl;
-		cout<<"  5.腐败：生命+1，成绩-7。"<<endl;
-		cout<<"  6.一起腐败：你选择一名其他角色，你与其生命各+2，你成绩-8，其成绩-10。"<<endl;
-		cout<<"  7.向AJ举报：你选择一名其他角色，其生命-1，如果其本轮成为过卡牌5、6的目标，改为生命-2。"<<endl;
-		cout<<"  8.急眼：你选择一名其他角色，其生命-2，你成绩-5，然后如果其本轮成为过卡牌5、6的目标，其成绩-5。"<<endl;
-		cout<<"  9.翻墙：除了本回合成为卡牌1、2、3的目标的人外，其他所有角色成绩-7，生命-1，然后你有50%概率成绩-3，生命-1。"<<endl;
-		cout<<"  10.机惨：你选择一名其他角色，其成绩在接下来3回合中每回合-1，并且不能使用卡牌（卡牌正常抽取，可以弃牌），不叠加"<<endl;
-		cout<<"有概率摸到更高稀有度，每一级有益效果*1.67（对最终结果向上取整），优先于被动技能。"<<endl;
+		cout<<"  5.腐败：生命+1，成绩-4.2。"<<endl;
+		cout<<"  6.一起腐败：你选择一名其他角色，你与其生命各+2，你成绩-6，其成绩-8。"<<endl;
+		cout<<"  7.向AJ举报：你选择一名其他角色，其生命-1，如果其本轮成为过卡牌5、6的目标，改为生命-3。"<<endl;
+		cout<<"  8.急眼：你选择一名其他角色，其生命-2，你成绩-2.4（最终结算向上取证），然后如果其本轮成为过卡牌5、6的目标，其成绩再-1。"<<endl;
+		cout<<"  9.翻墙：除了本回合成为卡牌1、2、3的目标的人外，其他所有角色成绩-3.5（最终结算向上取整），生命-1，然后你有50%概率成绩-3，生命-1。"<<endl;
+		cout<<"  10.机惨：你选择一名其他角色，其成绩在接下来2回合中每回合减去目前玩家人数，并且不能使用卡牌（卡牌正常抽取，可以弃牌），不叠加"<<endl;
+		cout<<"有概率摸到更高稀有度，每一级有益效果*1.67），对成绩的减益*1.67，对最终结果向上取整，优先于被动技能。"<<endl;
 		cout<<"角色："<<endl;
 		cout<<"  1.lyr：使用卡牌5时生命+1，成绩-2。"<<endl;
 		cout<<"		（1）腐败王：你可以视为使用了一张卡牌5，本轮其他所有角色无法使用卡牌1。"<<endl;
@@ -187,7 +187,7 @@ namespace User_input{
 		cout<<"  5.nmk：每轮摸1张卡牌5。"<<endl;
 		cout<<"		（1）腐败小助手：你使用卡牌5、6时不视为腐败。"<<endl;
 		cout<<"		（2）你是个废物！：你选择一名角色，令其弃置手中的所有卡牌1、2、3。"<<endl;
-		cout<<"  6.AJ：在你腐败时，其它角色对你使用的卡牌7改为“你自减2点生命”。"<<endl;
+		cout<<"  6.AJ：在你腐败时，其它角色对你使用的卡牌7改为“你自减稀有度等级*2”。"<<endl;
 		cout<<"		（1）抓腐：你使用卡牌7时。"<<endl;
 		cout<<"		（2）不死之身：每局限两次，若你的生命<=2且不为0，你选择一项：1.生命+2；2.你选择一名其它角色，令其生命-5，成绩=0，然后你死亡。"<<endl;
 		cout<<"禁用卡牌：" << endl;
@@ -331,9 +331,8 @@ struct Group{
 			}
 			break;
 		case 5:
-			{
-				int addlf=1,addsc=-7;
-				addlf=ceil(addlf*rarity_times[_rarity]);
+ 			{
+				int addlf=1*ceil(rarity_times[_rarity]),addsc=-ceil(4.2*rarity_times[_rarity]);
 				cout << players[playerid].name << "生命+" << addlf << " 成绩-" << -addsc << "\n";
 				if(spritename=="lyr"){
 					addlf++;
@@ -365,32 +364,39 @@ struct Group{
 		case 6:
 			{
 				int chooseplayer=choooseplayer(playerid);
-				int addsc_self=-8,addsc_it=-10,addlf_self=2,addlf_it=2;
+				int addsc_self=-6,addsc_it=-8,addlf_self=2,addlf_it=2;
 				addlf_self=ceil(addlf_self*rarity_times[_rarity]);
 				addlf_it=ceil(addlf_it*rarity_times[_rarity]);
+				addsc_self=ceil(addsc_self*rarity_times[_rarity]);
+				addsc_it=ceil(addsc_it*rarity_times[_rarity]);
+				string sname_it=sprite_names[players[chooseplayer].spriteid];
+				auto f=[](vector<player> &players,const string &spritename,int playerid,int &addsc_self,int &addlf_self){
+					if(spritename=="xza"){
+						cout << players[playerid].name << "发动了被动技能！成为卡牌6的目标时成绩改为减去1/4（向下取整）。\n";
+						addsc_self=-players[playerid].score/4;
+						if(randint(1,10)==1){
+							cout << players[playerid].name << "发动了被动技能[透明度]！视为使用卡牌2且不视为腐败。\n";
+							players[playerid].tags["corruption"]="false";
+							int addsc=ceil(players[playerid].knowledge*0.5);
+							cout << players[playerid].name << "成绩+" << addsc << "\n";
+							cout << "xza发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
+							addsc=ceil(addsc*1.6);
+							players[playerid].add_sc(addsc);
+						}
+					} else if(spritename=="cyq"){
+						if(randint(1,10)<=4){
+							cout << "cyq发动了被动技能！成绩再-7。\n";
+							addsc_self-=7;
+						}
+					} else if(spritename=="nmk"){
+						cout << players[playerid].name << "发动了被动技能[腐败小助手]！清空本轮腐败效果。\n";
+						players[playerid].tags["corruption"]="false";
+					}
+				};
+				f(players,spritename,playerid,addsc_self,addlf_self);
+				f(players,sname_it,chooseplayer,addsc_it,addlf_it);
 				cout << players[playerid].name << "生命+" << addlf_self << " 成绩-" << -addsc_self << "\n";
 				cout << players[chooseplayer].name << "生命+" << addlf_it << " 成绩-" << -addsc_it << "\n";
-				if(spritename=="xza"){
-					cout << players[playerid].name << "发动了被动技能！成为卡牌6的目标时成绩改为减去1/4（向下取整）。\n";
-					addsc_self=-players[playerid].score/4;
-					if(randint(1,10)==1){
-						cout << players[playerid].name << "发动了被动技能[透明度]！视为使用卡牌2且不视为腐败。\n";
-						players[playerid].tags["corruption"]="false";
-						int addsc=ceil(players[playerid].knowledge*0.5);
-						cout << players[playerid].name << "成绩+" << addsc << "\n";
-						cout << "xza发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
-						addsc=ceil(addsc*1.6);
-						players[playerid].add_sc(addsc);
-					}
-				} else if(spritename=="cyq"){
-					if(randint(1,10)<=4){
-						cout << "cyq发动了被动技能！成绩再-7。\n";
-						addsc_self-=7;
-					}
-				} else if(spritename=="nmk"){
-					cout << players[playerid].name << "发动了被动技能[腐败小助手]！清空本轮腐败效果。\n";
-					players[playerid].tags["corruption"]="false";
-				}
 				players[playerid].add_lf(addlf_self);
 				players[playerid].add_sc(addsc_self);
 				players[chooseplayer].add_lf(addlf_it);
@@ -399,36 +405,43 @@ struct Group{
 			break;
 		case 7:
 			{
+				int addlf1=1,addlf2=3;
+				addlf1=-ceil(addlf1*rarity_times[_rarity]);
+				addlf2=-ceil(addlf2*rarity_times[_rarity]);
 				if(spritename=="AJ"){
 					cout << "发动被动技能[抓腐]！使用卡牌7对所有人（自己除外）有效。\n";
 					for(int i=1;i<=playersum;i++){
 						if(i==playerid)	continue;
 						if(players[i].tags["corruption"]=="true"){
-							cout << players[i].name << "在腐败。生命-3。\n";
-							players[i].add_lf(-3);
+							cout << players[i].name << "在腐败。生命-" << -addlf2 << "。\n";
+							players[i].add_lf(addlf2);
 						} else{
-							cout << players[i].name << "没有腐败。生命-1。\n";
-							players[i].add_lf(-1);
+							cout << players[i].name << "没有腐败。生命-" << -addlf1 << "。\n";
+							players[i].add_lf(addlf1);
 						}
 					}
 					break;
 				}
 				int chooseplayer=choooseplayer(playerid);
 				if(sprite_names[players[chooseplayer].spriteid]=="AJ"){
-					cout << "AJ发动被动技能！向AJ举报AJ的人生命-2，AJ不受影响。\n";
-					players[playerid].add_lf(-2);
+					int addlf=-2*(1+_rarity);
+					cout << "AJ发动被动技能！向AJ举报AJ的人生命-" << -addlf << "，AJ不受影响。\n";
+					players[playerid].add_lf(addlf);
 					break;
 				}
-				int addlf=-1;
-				if(players[chooseplayer].tags["corruption"]=="true")	addlf-=2;
+				int addlf=addlf1;
+				if(players[chooseplayer].tags["corruption"]=="true")	addlf=addlf2;
 				players[chooseplayer].add_lf(addlf);
 				cout << players[chooseplayer].name << "生命-" << -addlf << "\n";
 			}
 			break;
 		case 8:
 			{
+				
 				if(spritename=="cyq"){
-					cout << players[playerid].name << "发动了被动技能[急眼哥]！使用卡牌8时改为所有其它角色生命-2，自己成绩改为-7；如果角色腐败过，成绩-5。\n";
+					
+					int addsc=-ceil(5*rarity_times[_rarity]);
+					cout << players[playerid].name << "发动了被动技能[急眼哥]！使用卡牌8时改为所有其它角色生命-2，自己成绩改为-7；如果角色腐败过，成绩-" << -addsc << "。\n";
 					cout << players[playerid].name << "成绩-7\n";
 					players[playerid].add_sc(-7);
 					for(int i=1;i<=playersum;i++){
@@ -436,15 +449,15 @@ struct Group{
 						cout << players[i].name << "生命-2 ";
 						players[i].add_lf(-2);
 						if(players[i].tags["corruption"]=="true"){
-							cout << "成绩-5";
-							players[i].add_sc(-5);
+							cout << "成绩-" << -addsc;
+							players[i].add_sc(addsc);
 						}
 						cout << '\n';
 					}
 					break;
 				}
 				int chooseplayer=choooseplayer(playerid);
-				int addlf_it=-2,addsc_self=-5,addsc_it=0;
+				int addlf_it=-2,addsc_self=-ceil(2.4*rarity_times[_rarity]),addsc_it=0;
 				if(players[chooseplayer].tags["corruption"]=="true")	addsc_it-=5;
 				cout << players[playerid].name << "成绩-" << -addsc_self << "\n";
 				cout << players[chooseplayer].name << "生命-" << -addlf_it;
@@ -464,25 +477,26 @@ struct Group{
 					if(players[i].tags["involution"]=="true"){
 						cout << players[i].name << "在内卷\n";
 					} else{
-						int addsc=-7,addlf=-1;
+						int addsc=-ceil(3.5*rarity_times[_rarity]),addlf=-1;
 						cout << players[i].name << "成绩-" << -addsc << " 生命-" << -addlf << "\n";
 						players[i].add_lf(addlf);
 						players[i].add_sc(addsc);
 					}
 				}
 				if(randint(1,2)==1){
-					cout << players[playerid].name << "翻墙被抓了。成绩-3 生命-1\n";
+					int addsc=-ceil(3.5*(1+_rarity));
+					cout << players[playerid].name << "翻墙被抓了。成绩-" << -addsc << " 生命-1\n";
 					players[playerid].add_lf(-1);
-					players[playerid].add_sc(-3);
+					players[playerid].add_sc(-addsc);
 				}
 			}
 			break;
 		case 10:
 			{
 				int chooseplayer=choooseplayer(playerid);
-				int jcnums=ceil(3*rarity_times[_rarity]);
+				int jcnums=ceil(2*rarity_times[_rarity]);
 				players[chooseplayer].tags["jced"]=to_string(jcnums);
-				cout << players[chooseplayer].name << "被机惨了，接下来" << jcnums << "个回合每回合无法行动，且每回合成绩-1。\n";
+				cout << players[chooseplayer].name << "被机惨了，接下来" << jcnums << "个回合每回合无法行动，且每回合成绩减去目前玩家人数。\n";
 			}
 			break;
 		}
@@ -523,8 +537,9 @@ struct Group{
 				players[i].cards.push_back(make_pair(5,randchoose(make_pair(rarityprop,rarityid))));
 			}
 			if(players[i].jcturn()>=1){
-				cout << players[i].name << "被机惨了，所有卡牌被禁用，成绩-1。\n";
-				players[i].add_sc(-1);
+				int addsc=nowalive();
+				cout << players[i].name << "被机惨了，所有卡牌被禁用，成绩-" << addsc << "。\n";
+				players[i].add_sc(-addsc);
 				Sleep(500);
 			} else{
 				do{
