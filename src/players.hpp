@@ -25,7 +25,7 @@ struct player{
 //	bool canplay[10];//能否使用此卡牌
 	bool isAI=false;//是否是AI代管
 	map<string,string> tags;//状态
-	player(const string &_name="",bool _ai=false):name(_name),isAI(_ai){
+	player(const string &_name="",bool _ai=false):name(_name),isAI(_ai),life(20),score(100),knowledge(0),isdead(false){
 		tags["corruption"]="false";
 		tags["involution"]="false";
 		if(name=="lyr"){
@@ -272,7 +272,7 @@ struct Group{
 					cout << "xza发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
 					addsc=ceil(addsc*1.6);
 				} else if(spritename=="wcy"){
-					cout << "wcy发动了被动技能[秒题]！使用的卡牌3改为每有1知识点，成绩+0.8。\n";
+					cout << "wcy发动了被动技能[秒题]！使用的卡牌2改为每有1知识点，成绩+0.8。\n";
 					addsc=ceil(players[playerid].knowledge*0.8);
 				}
 				cout << players[playerid].name << "成绩+" << addsc << "\n";
@@ -429,8 +429,8 @@ struct Group{
 					break;
 				}
 				int chooseplayer=choooseplayer(playerid);
-				int addlf_it=-2,addsc_self=-ceil(2.4*rarity_times[_rarity]),addsc_it=0;
-				if(players[chooseplayer].tags["corruption"]=="true")	addsc_it-=5;
+				int addlf_it=-ceil(2.0*rarity_times[_rarity]),addsc_self=-ceil(2.4*rarity_times[_rarity]),addsc_it=0;
+				if(players[chooseplayer].tags["corruption"]=="true")	addsc_it-=ceil(1.0*rarity_times[_rarity]);
 				cout << players[playerid].name << "成绩-" << -addsc_self << "\n";
 				cout << players[chooseplayer].name << "生命-" << -addlf_it;
 				if(addsc_it){
@@ -468,7 +468,7 @@ struct Group{
 				int chooseplayer=choooseplayer(playerid);
 				int jcnums=ceil(2*rarity_times[_rarity]);
 				players[chooseplayer].tags["jced"]=to_string(jcnums);
-				cout << players[chooseplayer].name << "被机惨了，接下来" << jcnums << "个回合每回合无法行动，且每回合成绩减去目前玩家人数。\n";
+				cout << players[chooseplayer].name << "被机惨了，接下来" << jcnums << "个回合每回合无法行动，且每回合成绩减去目前玩家人数点。\n";
 			}
 			break;
 		}
@@ -581,7 +581,7 @@ struct Group{
 				if(op==0){
 					//腐败王
 					cout << "视为使用一张[腐败]，本轮所有角色无法使用[学新知识点]。\n";
-					int addlf=1,addsc=-7;
+					int addlf=1,addsc=-4.2;
 					cout << players[i].name << "生命+" << addlf << " 成绩-" << -addsc << "\n";
 					addlf++;
 					addsc-=2;
