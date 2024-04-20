@@ -3,7 +3,9 @@
 #include<conio.h>
 #include<string>
 #include<cctype>
+#include<windows.h>
 #undef getch
+#include "defs.hpp"
 namespace REPLAY{
 	static std::string sav_str;
 	static int i=0;
@@ -30,6 +32,7 @@ int getch(){
 }
 #else
 int getch(){
+	Sleep(AI_THINK_MS);
 	if(REPLAY::i<REPLAY::sav_str.size()){
 		return REPLAY::sav_str[REPLAY::i++];
 	} else{

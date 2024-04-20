@@ -83,8 +83,12 @@ int main(int argc,char ** argv){
 	REPLAY::setstr(file.content);
 	Random::seed=file.seed;
 	Random::e.seed(seed);
+	Random::e.discard(1);
 	pgroup.playersum=file.info.size();
 //	cerr << "playersum=" << pgroup.playersum << ".\n";
+	pgroup.players.clear();
+	pgroup.players.push_back(player("",true));
+	pgroup.players.back().isdead=true;
 	for(auto &sth:file.info){
 		pgroup.players.push_back(player(sth.first,sth.second));
 	}
