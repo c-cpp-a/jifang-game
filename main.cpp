@@ -53,29 +53,29 @@ int main(int argc,char ** argv){
 		//对于每一行 [name delete=xxx]，xxx是你想要禁用的卡牌，用,隔开
 		bool flag=setdelete(argv[1]);
 		if(!flag){
-			cout << "不支持导入此配置文件！\n";
+			cerr << "不支持导入此配置文件！\n";
 			throw "";
 		}
-		cout << "设置中……\n";
+		cerr << "设置中……\n";
 		for(auto &perdel:deletecards){
-			cout << "对于玩家 " << perdel.first << "，禁用卡牌 ";
+			cerr << "对于玩家 " << perdel.first << "，禁用卡牌 ";
 			for(auto &card:perdel.second){
-				cout << card << "，";
+				cerr << card << "，";
 			}
-			cout << "完毕。\n";
+			cerr << "完毕。\n";
 		}
 		deletecard();
-		cout << "设置完成\n";
+		cerr << "设置完成\n";
 		system("pause");
 		system("cls");
 	}
-	cout.flags(ios::fixed);
-	cout.precision(2);
+	cerr.flags(ios::fixed);
+	cerr.precision(2);
 	system("title 机房杀");
 	start:
 	system("cls");
-	cout<<"欢迎来到机房杀！\n";
-	cout<<"[1]游戏说明\t[2]开始游戏\t[3]统计信息\n";
+	cerr<<"欢迎来到机房杀！\n";
+	cerr<<"[1]游戏说明\t[2]开始游戏\t[3]统计信息\n";
 	int x;
 	string s;
 	x=getch()-'0';
@@ -90,7 +90,7 @@ int main(int argc,char ** argv){
 		Random::e.seed(seed);
 		int n;
 		system("cls");
-		cout<<"游戏人数：";
+		cerr<<"游戏人数：";
 		cin>>n;
 		string tmpp;
 		getline(cin,tmpp);
@@ -100,15 +100,15 @@ int main(int argc,char ** argv){
 		}
 		player winner=pgroup.gamemain();
 		system("cls");
-		cout<<"获胜者是：";
-		if(winner.isempty())cout<<"空气……\n";
+		cerr<<"获胜者是：";
+		if(winner.isempty())cerr<<"空气……\n";
 		else{
-			cout << winner.name << "!\n";
+			cerr << winner.name << "!\n";
 			players_calc[winner.name].first++;
 		}
 		pause();
 		system("cls");
-		cout << "你想要保存本次对局吗？(Y/N)";
+		cerr << "你想要保存本次对局吗？(Y/N)";
 		int op=_getch();
 		if(op=='Y' || op=='y'){
 			GAMEFILE file;
@@ -124,9 +124,9 @@ int main(int argc,char ** argv){
 		goto start;
 	} else if(x==3){
 		system("cls");
-		cout << "姓名\t赢的对局\t总对局\t胜率\n";
+		cerr << "姓名\t赢的对局\t总对局\t胜率\n";
 		for(map<string,pair<int,int>>::iterator it=players_calc.begin();it!=players_calc.end();++it){
-			cout << it->first << '\t' << it->second.first << '\t' << it->second.second << '\t' << 100.0*(it->second.first)/(it->second.second) << "%\n";
+			cerr << it->first << '\t' << it->second.first << '\t' << it->second.second << '\t' << 100.0*(it->second.first)/(it->second.second) << "%\n";
 		}
 		pause();
 		goto start;

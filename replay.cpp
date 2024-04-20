@@ -54,21 +54,21 @@ int main(int argc,char ** argv){
 		//对于每一行 [name delete=xxx]，xxx是你想要禁用的卡牌，用,隔开
 		bool flag=setdelete(argv[2]);
 		if(!flag){
-			cout << "不支持导入此配置文件！\n";
+			cerr << "不支持导入此配置文件！\n";
 			system("pause");
 //			throw "";
 			return 0;
 		}
-		cout << "设置中……\n";
+		cerr << "设置中……\n";
 		for(auto &perdel:deletecards){
-			cout << "对于玩家 " << perdel.first << "，禁用卡牌 ";
+			cerr << "对于玩家 " << perdel.first << "，禁用卡牌 ";
 			for(auto &card:perdel.second){
-				cout << card << "，";
+				cerr << card << "，";
 			}
-			cout << "完毕。\n";
+			cerr << "完毕。\n";
 		}
 		deletecard();
-		cout << "设置完成\n";
+		cerr << "设置完成\n";
 		system("pause");
 		system("cls");
 	}
@@ -78,22 +78,22 @@ int main(int argc,char ** argv){
 	fin.close();
 	string title=string("title 机房杀[")+argv[1]+"]";
 	system(title.c_str());
-//	cout << "导入信息：seed=" << file.seed << ", content=" << file.content << ".\n";
+//	cerr << "导入信息：seed=" << file.seed << ", content=" << file.content << ".\n";
 	REPLAY::clear();
 	REPLAY::setstr(file.content);
 	Random::seed=file.seed;
 	Random::e.seed(seed);
 	pgroup.playersum=file.info.size();
-//	cout << "playersum=" << pgroup.playersum << ".\n";
+//	cerr << "playersum=" << pgroup.playersum << ".\n";
 	for(auto &sth:file.info){
 		pgroup.players.push_back(player(sth.first,sth.second));
 	}
 	player winner=pgroup.gamemain();
 	system("cls");
-	cout<<"获胜者是：";
-	if(winner.isempty())cout<<"空气……\n";
+	cerr<<"获胜者是：";
+	if(winner.isempty())cerr<<"空气……\n";
 	else{
-		cout << winner.name << "!\n";
+		cerr << winner.name << "!\n";
 	}
 	system("pause");
 	return 0;
