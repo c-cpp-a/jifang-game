@@ -4,7 +4,8 @@
 #include "defs.hpp"
 using namespace std;
 namespace Random{
-	default_random_engine e(time(0));
+	int seed=time(0);
+	default_random_engine e(seed);
 	int randint(int l,int r){
 		if(l>r)	swap(l,r);
 		return uniform_int_distribution<int>(l,r)(e);

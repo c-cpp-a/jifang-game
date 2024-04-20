@@ -5,6 +5,8 @@
 #include<map>
 #include<iostream>
 #include<cmath>
+#include<fstream>
+#include<sstream>
 #include<windows.h>
 #include "defs.hpp"
 #include "inputs.hpp"
@@ -25,7 +27,7 @@ struct player{
 //	bool canplay[10];//能否使用此卡牌
 	bool isAI=false;//是否是AI代管
 	map<string,string> tags;//状态
-	player(const string &_name="",bool _ai=false):name(_name),isAI(_ai),life(20),score(100),knowledge(0),isdead(false){
+	player(const string &_name="",bool _ai=false):name(_name),life(20),score(100),knowledge(0),isdead(false),isAI(_ai){
 		tags["corruption"]="false";
 		tags["involution"]="false";
 		if(name=="lyr"){
@@ -104,7 +106,7 @@ namespace User_input{
 		cout << "玩家姓名：";
 		getline(cin,name);
 		cout << "玩家是否为AI？(Y/N)";
-		op=getch();
+		op=_getch();
 		if(op=='Y' || op=='y'){
 			cout << "是\n";
 			return player(name,true);
@@ -124,6 +126,7 @@ namespace User_input{
 		cout<<"2024.1.31 增加功能：卡牌稀有度" << endl;
 		cout<<"2024.4.12 增加卡牌：机惨" << endl;
 		cout<<"2024.4.13 增加功能：禁用卡牌" << endl;
+		cout<<"2024.4.20 增加功能：录像回放" << endl;
 		cout<<"开发：lyr、xza、cyq"<<endl;
 		cout<<"规则："<<endl;
 		cout<<"  1.每回合结束时，将手中的牌弃到6张。"<<endl;
@@ -167,6 +170,8 @@ namespace User_input{
 		cout<<"  name表示你要对其使用禁用的玩家名称。"<<endl;
 		cout<<"  c1,c2,c3,...依次表示你要对此玩家禁用的卡牌，你指定的玩家在接下来的所有游戏中都不能使用这些卡牌。"<<endl;
 		cout<<"  请注意你的配置文件编码，如果使用非ANSI编码，导入时可能会乱码。"<<endl;
+		cout << "录像回放："<< endl;
+		
 		system("pause");
 	}
 	
@@ -475,7 +480,7 @@ struct Group{
 		if(players[playerid].isAI){
 			Sleep(AI_THINK_MS);
 		} else{
-			getch();
+			pause();
 		}
 	}
 	void update(){
@@ -518,7 +523,7 @@ struct Group{
 					get:gameinfo(players[i]);
 					cout << "0 停止出牌\t";
 					for(int j=0,siz=players[i].cards.size();j<siz;j++){
-						pair<int,int> card=players[i].cards[j];
+//						pair<int,int> card=players[i].cards[j];
 //						cout << j+1 << ' ';
 						players[i].showcard(j);
 //						SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),rarity_col[card.second]);
@@ -547,7 +552,7 @@ struct Group{
 							if(players[i].isAI){
 								Sleep(AI_THINK_MS);
 							} else{
-								getch();	
+								pause();	
 							}
 							goto get;
 						}
@@ -651,7 +656,7 @@ struct Group{
 			if(players[i].isAI){
 				Sleep(AI_THINK_MS);
 			} else{
-				getch();	
+				pause();	
 			}
 		}
 	}
@@ -692,7 +697,17 @@ struct Group{
 					continue;
 				}
 				startcard(i);
+				if(players[i].isdead){
+					cout << players[i].name << "死了。\n";
+					Sleep(PAUSE_MS);
+					continue;
+				}
 				startskill(i);
+				if(players[i].isdead){
+					cout << players[i].name << "死了。\n";
+					Sleep(PAUSE_MS);
+					continue;
+				}
 				popcard(i);
 			}
 		}
