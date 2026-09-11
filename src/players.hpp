@@ -42,8 +42,10 @@ struct player{
 			spriteid=5;
 		} else if(name=="AJ"){
 			spriteid=6;
+		} else if(name=="lxz"){
+			spriteid=7;
 		} else{
-			spriteid=randint(0,6);
+			spriteid=randint(0,7);
 		}
 		tags["spriteid"]=to_string(spriteid);
 		if(spriteid==6){
@@ -65,6 +67,13 @@ struct player{
 	}
 	void add_lf(int delta);
 	void add_sc(int delta){
+		if(delta<0 && spriteid==7){
+			//lxz
+			if(randint(1,10)<=1){
+				cerr << "lxz发动了被动技能[名声赫赫]！免疫此次成绩降低。\n";
+				return;
+			}
+		}
 		score=min(score+delta,400);
 		if(score<0){
 			score=0;
@@ -115,63 +124,137 @@ namespace User_input{
 			return player(name,false);
 		}
 	}
+	struct LogEntry {
+		const char *date;
+		const char *text;
+	};
+	const vector<LogEntry> changelog = {
+		{"2024.1.22", "创建游戏"},
+		{"2024.1.23", "最开始设计的游戏功能都实现了，测试完毕"},
+		{"2024.1.27", "可以增加AI了，但是这个AI就是从所有可选项中随机选一个，不知道有什么用。"},
+		{"2024.1.29", "游戏细节优化，修复bug"},
+		{"2024.1.30", "增加统计信息显示"},
+		{"2024.1.31", "增加功能：卡牌稀有度"},
+		{"2024.4.12", "增加卡牌：机惨"},
+		{"2024.4.13", "增加功能：禁用卡牌"},
+		{"2024.4.20", "增加功能：录像回放"},
+		{"2026.9.11", "修了亿点bug，加了lxz"},
+	};
+	const vector<string> flow_rules = {
+		"每回合结束时，将手中的牌弃到6张。",
+		"角色技能如果没有备注，每回合限一次，牌没有限制。",
+		"成绩<0时让成绩=0，然后生命-6，生命<0时如果没有特殊技能，角色死亡。",
+		"每回合开始时，摸2张牌。",
+		"游戏开始时，角色的生命为20，成绩为100，知识点为0。",
+	};
+	struct CardDesc {
+		const char *name;
+		const char *text;
+	};
+	const CardDesc card_desc[] = {
+		{"", ""},
+		{"学新知识点", "成绩+10，知识点+1"},
+		{"做题", "成绩加上知识点数量*0.5（向上取整）"},
+		{"狂人卷题", "生命-1，成绩+知识点数量*1"},
+		{"禁止内卷", "所有角色本轮无法使用卡牌1、2、3。"},
+		{"腐败", "生命+1，成绩-4.2。"},
+		{"一起腐败", "你选择一名其他角色，你与其生命各+2，你成绩-6，其成绩-8。"},
+		{"向AJ举报", "你选择一名其他角色，其生命-1，如果其本轮成为过卡牌5、6的目标，改为生命-3。"},
+		{"急眼", "你选择一名其他角色，其生命-2，你成绩-2.4（向上取整），然后如果其本轮成为过卡牌5、6的目标，其成绩再-1。"},
+		{"翻墙", "除了本回合成为卡牌1、2、3的目标的人外，其他所有角色成绩-3.5（向上取整），生命-1，然后你有50%概率成绩-3.5*稀有度等级，生命-1。"},
+		{"机惨", "你选择一名其他角色，其成绩在接下来2回合中每回合减去目前玩家人数，并且不能使用卡牌（卡牌正常抽取，可以弃牌），不叠加。"},
+	};
+	struct SkillDesc {
+		const char *name;
+		const char *text;
+	};
+	struct SpriteDesc {
+		const char *passive;
+		vector<SkillDesc> actives;
+	};
+	const SpriteDesc sprite_desc[] = {
+		{},  // 0：空
+		// 1: lyr
+		{ "使用卡牌5时生命+1，成绩-2。",
+			{ {"腐败王", "你可以视为使用了一张卡牌5，本轮其他所有角色无法使用卡牌1。"},
+				{"制裁",   "你可以自减5点生命，本轮其他所有角色无法使用卡牌4、5、6。"} } },
+		// 2: xza
+		{ "使用卡牌1时成绩+2，成为卡牌6的目标时成绩减少1/4。",
+			{ {"蓝勾爷", "你使用卡牌2、3时，效果结算后*1.6。"},
+				{"透明度", "你使用卡牌5、6时有10%概率视为使用卡牌2且不视为腐败。"} } },
+		// 3: cyq
+		{ "使用卡牌5、6时有40%概率成绩-7。",
+			{ {"急眼哥", "你使用卡牌8时改为“所有其他角色生命-2，你成绩-7，然后如果有其他角色本轮成为过卡牌5、6的目标，其成绩-5。”"},
+				{"出题人", "你可以令所有其他角色视为使用卡牌2，以此法使用的卡牌2改为“成绩加上知识点数量*0.1（向上取整）”，然后你成绩+5。"} } },
+		// 4: wcy
+		{ "每局限两次，你的生命每-1，成绩+2，成绩若>300，生命再+2。",
+			{ {"秒题", "你使用的卡牌2改为“成绩+知识点数量*0.8”。"},
+				{"水谷", "你可以令所有角色本轮无法使用卡牌4，已有的禁止内卷效果无效。"} } },
+		// 5: nmk
+		{ "每轮摸1张卡牌5。",
+			{ {"腐败小助手", "你使用卡牌5、6时不视为腐败。"},
+				{"你是个废物！", "你选择一名角色，令其弃置手中的所有卡牌1、2、3。"} } },
+		// 6: AJ
+		{ "在你腐败时，其它角色对你使用的卡牌7改为“你自减稀有度等级*2生命”。",
+			{ {"抓腐", "你使用卡牌7时对所有人（自己除外）有效。"},
+				{"不死之身", "每局限两次，若你的生命<=2，你选择一项：1.生命+2，最少为2；2.你选择一名其它角色，令其生命-5，成绩=0，然后你死亡。"} } },
+		// 7: lxz
+		{ "被机惨时，如果成绩大于0，持续回合数减少1，最多使持续回合减少至0。",
+			{{"名声赫赫","成绩将要被降低时，有10%概率免疫。"},
+				{"管理员","为所有成绩为0或大于等于150的角色回复1生命值，自己回复与总回复量相同的生命值。"}}},
+	};
+	const vector<pair<const char*, vector<string>>> extra_sections = {
+		{"禁用卡牌", {
+			"你可以将一个配置文件拖入可执行文件中，配置文件由若干行组成，每一行格式形如 [name delete=c1[,c2,c3,...]]。",
+			"name 表示你要对其使用禁用的玩家名称。",
+			"c1,c2,c3,... 依次表示你要对此玩家禁用的卡牌名称，你指定的玩家在接下来的所有游戏中都不能使用这些卡牌。",
+			"请注意你的配置文件编码，如果使用非ANSI编码，导入时可能会乱码。",
+		}},
+		{"录像回放", {
+			"你可以在对局结束后选择保存录像文件（录像文件名默认为 Jifang_game_seed=<seed>.replay，其中 <seed> 是游戏内的随机种子，不用关心），可以重命名录像文件。",
+			"将录像文件拖入 replay.exe 后可以回放该段对局，注意如果有配置文件的话要将配置文件一起拖入。",
+		}},
+		{"开发人员", {
+			"lyr、xza、cyq",
+		}},
+	};
 	void help(){
 		//游戏信息
-		cerr<<"更新日志：" << endl;
-		cerr<<"2024.1.22 创建游戏"<<endl;
-		cerr<<"2024.1.23 最开始设计的游戏功能都实现了，测试完毕" << endl;
-		cerr<<"2024.1.27 可以增加AI了，但是这个AI就是从所有可选项中随机选一个，不知道有什么用。" << endl;
-		cerr<<"2024.1.29 游戏细节优化，修复bug" << endl;
-		cerr<<"2024.1.30 增加统计信息显示" << endl;
-		cerr<<"2024.1.31 增加功能：卡牌稀有度" << endl;
-		cerr<<"2024.4.12 增加卡牌：机惨" << endl;
-		cerr<<"2024.4.13 增加功能：禁用卡牌" << endl;
-		cerr<<"2024.4.20 增加功能：录像回放" << endl;
-		cerr<<"开发：lyr、xza、cyq"<<endl;
-		cerr<<"规则："<<endl;
-		cerr<<"  1.每回合结束时，将手中的牌弃到6张。"<<endl;
-		cerr<<"  2.角色技能如果没有备注，每回合限一次，牌没有限制。"<<endl;
-		cerr<<"  3.成绩<0时让成绩=0，然后生命-6，生命<0时如果没有特殊技能，角色死亡。"<<endl;
-		cerr<<"  4.每回合开始时，摸2张牌。"<<endl;
-		cerr<<"  5.游戏开始时，角色的生命为20，成绩为100，知识点为0。"<<endl;
-		cerr<<"卡牌（普通卡牌）："<<endl;
-		cerr<<"  1.学新知识点：成绩+10，知识点+1"<<endl;
-		cerr<<"  2.做题：成绩加上知识点数量*0.5（向上取整）"<<endl;
-		cerr<<"  3.狂人卷题：生命-1，成绩+知识点数量*1"<<endl;
-		cerr<<"  4.禁止内卷：所有角色本轮无法使用卡牌1、2、3。"<<endl;
-		cerr<<"  5.腐败：生命+1，成绩-4.2。"<<endl;
-		cerr<<"  6.一起腐败：你选择一名其他角色，你与其生命各+2，你成绩-6，其成绩-8。"<<endl;
-		cerr<<"  7.向AJ举报：你选择一名其他角色，其生命-1，如果其本轮成为过卡牌5、6的目标，改为生命-3。"<<endl;
-		cerr<<"  8.急眼：你选择一名其他角色，其生命-2，你成绩-2.4（最终结算向上取证），然后如果其本轮成为过卡牌5、6的目标，其成绩再-1。"<<endl;
-		cerr<<"  9.翻墙：除了本回合成为卡牌1、2、3的目标的人外，其他所有角色成绩-3.5（最终结算向上取整），生命-1，然后你有50%概率成绩-3，生命-1。"<<endl;
-		cerr<<"  10.机惨：你选择一名其他角色，其成绩在接下来2回合中每回合减去目前玩家人数，并且不能使用卡牌（卡牌正常抽取，可以弃牌），不叠加"<<endl;
-		cerr<<"有概率摸到更高稀有度，每一级有益效果*1.67），对成绩的减益*1.67，对最终结果向上取整，优先于被动技能。"<<endl;
-		cerr<<"角色："<<endl;
-		cerr<<"  1.lyr：使用卡牌5时生命+1，成绩-2。"<<endl;
-		cerr<<"		（1）腐败王：你可以视为使用了一张卡牌5，本轮其他所有角色无法使用卡牌1。"<<endl;
-		cerr<<"		（2）制裁：你可以自减5点生命，本轮其他所有角色无法使用卡牌4、5、6。"<<endl;
-		cerr<<"  2.xza：使用卡牌1时成绩+2，成为卡牌6的目标时成绩减少1/4。"<<endl;
-		cerr<<"		（1）蓝勾爷：你使用卡牌2、3时，效果结算后*1.6。"<<endl;
-		cerr<<"		（2）透明度：你使用卡牌5、6时有10%概率视为使用卡牌2且不视为腐败。"<<endl;
-		cerr<<"  3.cyq：使用卡牌5、6时有40%概率成绩-7。"<<endl;
-		cerr<<"		（1）急眼哥：你使用卡牌8时改为“所有其他角色生命-2，你成绩-7，然后如果有其他角色本轮成为过卡牌5、6的目标，其成绩-5。”"<<endl;
-		cerr<<"		（2）出题人：你可以令所有其他角色视为使用卡牌2，以此法使用的卡牌2改为“成绩加上知识点数量*0.1（向上取整）”，然后你成绩+5。"<<endl;
-		cerr<<"  4.wcy：每局限两次，你的生命每-1，成绩+2，成绩若>300，生命再+2。"<<endl;
-		cerr<<"		（1）秒题：你使用的卡牌2改为“成绩+知识点数量*0.8“。"<<endl;
-		cerr<<"		（2）水谷：你可以令所有角色本轮无法使用卡牌4，已有的禁止内卷效果无效。"<<endl;
-		cerr<<"  5.nmk：每轮摸1张卡牌5。"<<endl;
-		cerr<<"		（1）腐败小助手：你使用卡牌5、6时不视为腐败。"<<endl;
-		cerr<<"		（2）你是个废物！：你选择一名角色，令其弃置手中的所有卡牌1、2、3。"<<endl;
-		cerr<<"  6.AJ：在你腐败时，其它角色对你使用的卡牌7改为“你自减稀有度等级*2”。"<<endl;
-		cerr<<"		（1）抓腐：你使用卡牌7时。"<<endl;
-		cerr<<"		（2）不死之身：每局限两次，若你的生命<=2且不为0，你选择一项：1.生命+2；2.你选择一名其它角色，令其生命-5，成绩=0，然后你死亡。"<<endl;
-		cerr<<"禁用卡牌：" << endl;
-		cerr<<"  你可以将一个配置文件拖入可执行文件中，配置文件由若干行组成，每一行格式形如[name delete=c1[,c2,c3,...]]。"<<endl;
-		cerr<<"  name表示你要对其使用禁用的玩家名称。"<<endl;
-		cerr<<"  c1,c2,c3,...依次表示你要对此玩家禁用的卡牌，你指定的玩家在接下来的所有游戏中都不能使用这些卡牌。"<<endl;
-		cerr<<"  请注意你的配置文件编码，如果使用非ANSI编码，导入时可能会乱码。"<<endl;
-		cerr << "录像回放："<< endl;
-		
+		system("cls");
+		cerr << "===== 游戏说明 =====\n";
+		cerr << "===== 更新日志 =====\n";
+		for(auto &e : changelog) {
+			cerr << e.date << "  " << e.text << "\n";
+		}
+		cerr << "===== 规则介绍 =====\n\n";
+		cerr << "【游戏流程】\n";
+		int i = 1;
+		for(auto &s : flow_rules) {
+			cerr << "  " << i++ << ". " << s << "\n";
+		}
+		cerr << "\n【卡牌】\n";
+		for(int c = 1; c <= cardnums; c++) {
+			cerr << "  " << c << ". " << card_desc[c].name
+			<< "：" << card_desc[c].text << "\n";
+		}
+		cerr << "  有概率摸到更高稀有度（依次为：普通；罕见；稀有；史诗；传奇；神话），"
+		"每一级效果*1.67（对最终结果向上取整），优先于被动技能。\n";
+		cerr << "\n【角色】\n";
+		for(int s = 1; s <= 6; s++) {
+			cerr << "  " << s << "." << sprite_names[s] << "："
+			<< sprite_desc[s].passive << "\n";
+			for(size_t k = 0; k < sprite_desc[s].actives.size(); k++) {
+				cerr << "      （" << k+1 << "）" << sprite_desc[s].actives[k].name
+				<< "：" << sprite_desc[s].actives[k].text << "\n";
+			}
+		}
+		cerr << "===== 额外说明 =====\n";
+		for(auto &sec : extra_sections) {
+			cerr << "\n【" << sec.first << "】\n";
+			for(auto &line : sec.second) {
+				cerr << "  " << line << "\n";
+			}
+		}
 		system("pause");
 	}
 	
@@ -185,13 +268,13 @@ struct Group{
 		players.push_back(player("",true));
 		players.back().isdead=true;
 		for(int i=1;i<=n;i++){
-			player tmp;
-			do{
+			player tmp=getplayer();
+			while(checked[tmp.name]){
 				tmp=getplayer();
 				if(checked[tmp.name]){
 					cerr << "此名字已被使用！\n";
 				}
-			} while(checked[tmp.name]);
+			};
 			checked[tmp.name]=true;
 			players.push_back(tmp);
 		}
@@ -278,7 +361,7 @@ struct Group{
 					addsc=ceil(addsc*1.6);
 				} else if(spritename=="wcy"){
 					cerr << "wcy发动了被动技能[秒题]！使用的卡牌2改为每有1知识点，成绩+0.8。\n";
-					addsc=ceil(players[playerid].knowledge*0.8);
+					addsc=ceil(players[playerid].knowledge*0.8*rarity_times[_rarity]);
 				}
 				cerr << players[playerid].name << "成绩+" << addsc << "\n";
 				players[playerid].add_sc(addsc);	
@@ -320,9 +403,9 @@ struct Group{
 						cerr << players[playerid].name << "发动了被动技能[透明度]！视为使用卡牌2且不视为腐败。\n";
 						players[playerid].tags["corruption"]="false";
 						int addsc=ceil(players[playerid].knowledge*0.5);
+						addsc=ceil(addsc*1.6);
 						cerr << players[playerid].name << "发动了被动技能[蓝勾爷]！做题时各效果再x1.6。\n";
 						cerr << players[playerid].name << "成绩+" << addsc << "\n";
-						addsc=ceil(addsc*1.6);
 						players[playerid].add_sc(addsc);
 					}
 				} else if(spritename=="cyq"){
@@ -464,7 +547,7 @@ struct Group{
 					int addsc=-ceil(3.5*(1+_rarity));
 					cerr << players[playerid].name << "翻墙被抓了。成绩-" << -addsc << " 生命-1\n";
 					players[playerid].add_lf(-1);
-					players[playerid].add_sc(-addsc);
+					players[playerid].add_sc(addsc);
 				}
 			}
 			break;
@@ -472,6 +555,11 @@ struct Group{
 			{
 				int chooseplayer=choooseplayer(playerid);
 				int jcnums=ceil(2*rarity_times[_rarity]);
+				if(players[playerid].spriteid==7 && players[playerid].score>0){
+					//lxz
+					cerr << players[chooseplayer].name << "发动了被动技能！被机惨回合-1。";
+					jcnums=max(jcnums,0);
+				}
 				players[chooseplayer].tags["jced"]=to_string(jcnums);
 				cerr << players[chooseplayer].name << "被机惨了，接下来" << jcnums << "个回合每回合无法行动，且每回合成绩减去目前玩家人数点。\n";
 			}
@@ -485,21 +573,21 @@ struct Group{
 	}
 	void update(){
 		for(int i=1;i<=playersum;i++){
-			players[i].tags["corruption"]=players[i].tags["involution"]=false;
+			players[i].tags["corruption"]=players[i].tags["involution"]="false";
 			players[i].cards.push_back(randcardid());
 			players[i].cards.push_back(randcardid());
 			
 			int jcturns=players[i].jcturn();
 			if(jcturns==0){
 				for(int j=0;j<=cardnums;j++){
-					if(players[i].tags[card_names[i]]!="always_delete")	players[i].tags[card_names[j]]="default";
+					if(players[i].tags[card_names[j]]!="always_delete")	players[i].tags[card_names[j]]="default";
 				}
 			} else{
 				players[i].tags["jced"]=to_string(--jcturns);
 				if(jcturns==0){
 					players[i].tags["jced"].clear();
 					for(int j=0;j<=cardnums;j++){
-						if(players[i].tags[card_names[i]]!="always_delete")	players[i].tags[card_names[j]]="default";
+						if(players[i].tags[card_names[j]]!="always_delete")	players[i].tags[card_names[j]]="default";
 					}
 				}
 			}
@@ -624,7 +712,7 @@ struct Group{
 						}
 						cerr << players[j].name << "成绩+" << addsc << "\n";
 						players[j].add_sc(addsc);
-						players[j].tags["involution"]=true;
+						players[j].tags["involution"]="true";
 					}
 				}
 				break;
@@ -644,14 +732,31 @@ struct Group{
 					int playerid=choooseplayer(i);
 					cerr << players[i].name << "弃置了" << players[playerid].name << "的所有卡牌[学新知识点][做题][狂人卷题]。\n";
 					vector<pair<int,int>> relcard;
-					for(auto &x:players[i].cards){
+					for(auto &x:players[playerid].cards){
 						if(x.first>=4){
 							relcard.push_back(x);
 						}
 					}
-					players[i].cards=relcard;
+					players[playerid].cards=relcard;
 				}
 				break;
+			case 6:
+				break;
+			case 7:
+				if(op==0){
+					//管理员
+					cerr << "为所有成绩为0或大于等于150的玩家回复1生命值，自己回复与总回复量相同的生命值。\n";
+					int summ=0;
+					for(int j=1;j<=playersum;j++){
+						if((players[j].score==0 || players[j].score>=150) && players[j].isdead==false){
+							summ++;
+							cerr << players[i].name << "为" << players[j].name << "回复了" << 1 << "点生命值。\n";
+							players[j].add_lf(1);
+						}
+					}
+					cerr << players[i].name << "回复了" << summ << "点生命值。\n";
+					players[i].add_lf(summ);
+				}
 			}
 			if(players[i].isAI){
 				Sleep(AI_THINK_MS);
@@ -722,7 +827,7 @@ struct Group{
 auto pgroup=Group();
 void player::add_lf(int delta){
 	life=min(life+delta,20);
-	if(life>0 && life<=2 && spriteid==6 && tags["noend"].size()){
+	if(life<=2 && spriteid==6 && tags["noend"].size()){
 		string s=tags["noend"];
 		if(s=="1"){
 			tags["noend"]=string();
@@ -730,7 +835,7 @@ void player::add_lf(int delta){
 			tags["noend"]=to_string(stoi(s)-1);
 		}
 		cerr << "AJ发动了触发技能[不死之身]！请选择：\n";
-		cerr << "[1]生命+2\t[2]死去，但是选择A，他/她生命-5，成绩归0。\n";
+		cerr << "[1]生命+2，最低为2\t[2]死去，但是选择A，他/她生命-5，成绩归0。\n";
 		int op;
 		if(isAI){
 			Sleep(AI_THINK_MS);
@@ -740,7 +845,7 @@ void player::add_lf(int delta){
 			while(!(op=='1' || op=='2'))	op=getch();
 		}
 		if(op=='1'){
-			add_lf(2);
+			add_lf(max(2,2-life));
 		} else{
 			isdead=true;
 			cerr << "请选择：";

@@ -64,7 +64,6 @@ int main(int argc,char ** argv){
 			}
 			cerr << "完毕。\n";
 		}
-		deletecard();
 		cerr << "设置完成\n";
 		system("pause");
 		system("cls");
@@ -95,6 +94,7 @@ int main(int argc,char ** argv){
 		string tmpp;
 		getline(cin,tmpp);
 		pgroup=Group(n);
+		deletecard();
 		for(int i=1;i<=pgroup.playersum;i++){
 			players_calc[pgroup.players[i].name].second++;
 		}

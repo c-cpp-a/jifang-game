@@ -22,7 +22,11 @@ namespace REPLAY{
 	}
 }
 void pause(){
+#ifdef ROLEPLAY
+	Sleep(PAUSE_MS);
+#else
 	_getch();
+#endif
 }
 #ifndef ROLEPLAY
 int getch(){

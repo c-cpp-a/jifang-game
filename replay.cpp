@@ -67,7 +67,6 @@ int main(int argc,char ** argv){
 			}
 			cerr << "完毕。\n";
 		}
-		deletecard();
 		cerr << "设置完成\n";
 		system("pause");
 		system("cls");
@@ -83,7 +82,6 @@ int main(int argc,char ** argv){
 	REPLAY::setstr(file.content);
 	Random::seed=file.seed;
 	Random::e.seed(seed);
-	Random::e.discard(1);
 	pgroup.playersum=file.info.size();
 //	cerr << "playersum=" << pgroup.playersum << ".\n";
 	pgroup.players.clear();
@@ -92,6 +90,7 @@ int main(int argc,char ** argv){
 	for(auto &sth:file.info){
 		pgroup.players.push_back(player(sth.first,sth.second));
 	}
+	deletecard();
 	player winner=pgroup.gamemain();
 	system("cls");
 	cerr<<"获胜者是：";
